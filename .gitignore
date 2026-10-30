@@ -1,0 +1,22 @@
+node_modules
+dist
+coverage
+.env
+.env.*
+!.env.example
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea
+Thumbs.db
+*.log
+*.tsbuildinfo
+apps/web/.vite
+apps/web/dist
+apps/api/dist
+
+# Cachés locales de skills para agentes de IA
+apps/api/.agents
+apps/api/.claude
+apps/api/.windsurf
+apps/api/skills-lock.json

@@ -1,0 +1,174 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MemberStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Gym {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String   @unique
+  timezone  String   @default("America/Lima") @db.VarChar(64)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  members     Member[]
+  plans       Plan[]
+  memberships Membership[]
+  payments    Payment[]
+  attendances Attendance[]
+}
+
+model Member {
+  id             String       @id @default(uuid()) @db.Uuid
+  gymId          String       @db.Uuid
+  firstName      String       @db.VarChar(100)
+  lastName       String       @db.VarChar(100)
+  documentNumber String?      @db.VarChar(30)
+  memberCode     String       @db.VarChar(30)
+  phone          String?      @db.VarChar(30)
+  email          String?      @db.VarChar(150)
+  qrToken        String       @unique @default(uuid()) @db.Uuid
+  status         MemberStatus @default(ACTIVE)
+  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime     @updatedAt @db.Timestamptz(3)
+
+  gym Gym @relation(fields: [gymId], references: [id], onDelete: Restrict)
+
+  memberships Membership[]
+  payments    Payment[]
+  attendances Attendance[]
+
+  @@unique([gymId, documentNumber])
+  @@unique([gymId, memberCode])
+  @@index([gymId, lastName, firstName])
+  @@index([gymId, status])
+}
+
+enum MembershipStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+model Plan {
+  id           String   @id @default(uuid()) @db.Uuid
+  gymId        String   @db.Uuid
+  name         String   @db.VarChar(100)
+  description  String?  @db.VarChar(255)
+  durationDays Int
+  price        Decimal  @db.Decimal(10, 2)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  gym         Gym          @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  memberships Membership[]
+
+  @@index([gymId, active])
+}
+
+model Membership {
+  id                 String           @id @default(uuid()) @db.Uuid
+  gymId              String           @db.Uuid
+  memberId           String           @db.Uuid
+  planId             String           @db.Uuid
+  startDate          DateTime         @db.Date
+  endDate            DateTime         @db.Date
+  price              Decimal          @db.Decimal(10, 2)
+  status             MembershipStatus @default(ACTIVE)
+  cancelledAt        DateTime?        @db.Timestamptz(3)
+  cancellationReason String?          @db.VarChar(255)
+  createdAt          DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime         @updatedAt @db.Timestamptz(3)
+
+  gym    Gym    @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  plan   Plan   @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  payments    Payment[]
+  attendances Attendance[]
+
+  @@index([gymId, memberId])
+  @@index([gymId, status])
+  @@index([gymId, endDate])
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  TRANSFER
+  YAPE
+  PLIN
+  OTHER
+}
+
+enum PaymentStatus {
+  COMPLETED
+  REFUNDED
+}
+
+model Payment {
+  id           String @id @default(uuid()) @db.Uuid
+  gymId        String @db.Uuid
+  memberId     String @db.Uuid
+  membershipId String @db.Uuid
+
+  amount         Decimal       @db.Decimal(10, 2)
+  paymentDate    DateTime      @default(now()) @db.Timestamptz(3)
+  method         PaymentMethod
+  status         PaymentStatus @default(COMPLETED)
+  reference      String?       @db.VarChar(100)
+  notes          String?       @db.VarChar(255)
+  reversedAt     DateTime?     @db.Timestamptz(3)
+  reversalReason String?       @db.VarChar(255)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  gym        Gym        @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  member     Member     @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Restrict)
+
+  @@index([gymId, paymentDate])
+  @@index([gymId, memberId])
+  @@index([gymId, membershipId])
+  @@index([gymId, status])
+}
+
+model Attendance {
+  id                 String    @id @default(uuid()) @db.Uuid
+  gymId              String    @db.Uuid
+  memberId           String    @db.Uuid
+  membershipId       String?   @db.Uuid
+  attendanceDate     DateTime  @db.Date
+  checkedInAt        DateTime  @default(now()) @db.Timestamptz(3)
+  source             String?   @db.VarChar(30)
+  cancelled          Boolean   @default(false)
+  activeKey          String?   @db.VarChar(10)
+  cancelledAt        DateTime? @db.Timestamptz(3)
+  cancellationReason String?   @db.VarChar(255)
+  createdAt          DateTime  @default(now()) @db.Timestamptz(3)
+
+  gym        Gym         @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  member     Member      @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  membership Membership? @relation(fields: [membershipId], references: [id], onDelete: Restrict)
+
+  @@unique([gymId, memberId, attendanceDate, activeKey])
+  @@index([gymId, attendanceDate])
+  @@index([gymId, checkedInAt])
+  @@index([gymId, memberId, checkedInAt])
+}

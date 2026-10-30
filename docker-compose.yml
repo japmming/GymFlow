@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: gymflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gymflow
+      POSTGRES_USER: gymflow_app
+      POSTGRES_PASSWORD: local_dev_change_me
+    ports:
+      - "5432:5432"
+    volumes:
+      - gymflow_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gymflow_app -d gymflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  gymflow_pgdata:
