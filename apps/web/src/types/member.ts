@@ -43,17 +43,17 @@ export interface MembersResponse {
 export interface CreateMemberRequest {
   firstName: string;
   lastName: string;
-  documentNumber?: string;
-  memberCode?: string;
-  phone?: string;
-  email?: string;
+  documentNumber?: string | null;
+  memberCode?: string | null;
+  phone?: string | null;
+  email?: string | null;
 }
 
 export interface UpdateMemberRequest {
   firstName?: string;
   lastName?: string;
-  documentNumber?: string;
-  memberCode?: string;
-  phone?: string;
-  email?: string;
+  documentNumber?: string | null;
+  memberCode?: string | null;
+  phone?: string | null;
+  email?: string | null;
 }

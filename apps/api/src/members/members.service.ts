@@ -6,6 +6,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
+import { buildMemberSearchTerms } from '../common/member-search';
+import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 import { CreateMemberDto } from './dto/create-member.dto';
@@ -20,38 +22,14 @@ export class MembersService {
     const { search, page = 1, limit = 10 } = query;
 
     const skip = (page - 1) * limit;
+    const searchTerms = buildMemberSearchTerms(search);
 
     const where = {
       gymId,
 
-      ...(search
+      ...(searchTerms
         ? {
-            OR: [
-              {
-                firstName: {
-                  contains: search,
-                  mode: 'insensitive' as const,
-                },
-              },
-              {
-                lastName: {
-                  contains: search,
-                  mode: 'insensitive' as const,
-                },
-              },
-              {
-                documentNumber: {
-                  contains: search,
-                  mode: 'insensitive' as const,
-                },
-              },
-              {
-                memberCode: {
-                  contains: search,
-                  mode: 'insensitive' as const,
-                },
-              },
-            ],
+            AND: searchTerms,
           }
         : {}),
     };
@@ -146,7 +124,7 @@ export class MembersService {
 
   private async resolveMemberCode(
     gymId: string,
-    memberCode?: string,
+    memberCode?: string | null,
   ): Promise<string> {
     const normalized = memberCode?.trim().toUpperCase();
 
@@ -216,10 +194,11 @@ export class MembersService {
       }
     }
 
-    const data = { ...dto };
+    const { memberCode, ...rest } = dto;
+    const data: Prisma.MemberUpdateInput = { ...rest };
 
-    if (dto.memberCode !== undefined) {
-      const normalized = dto.memberCode.trim().toUpperCase();
+    if (memberCode !== undefined) {
+      const normalized = memberCode?.trim().toUpperCase() ?? '';
 
       if (normalized) {
         const existingMember = await this.prisma.member.findFirst({
@@ -237,8 +216,6 @@ export class MembersService {
         }
 
         data.memberCode = normalized;
-      } else {
-        delete data.memberCode;
       }
     }
 
@@ -259,6 +236,19 @@ export class MembersService {
       },
       data: {
         status: 'INACTIVE',
+      },
+    });
+  }
+
+  async reactivate(gymId: string, id: string) {
+    await this.findOne(gymId, id);
+
+    return this.prisma.member.update({
+      where: {
+        id,
+      },
+      data: {
+        status: 'ACTIVE',
       },
     });
   }

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import {
   createPlan,
   deactivatePlan,
   getPlans,
+  reactivatePlan,
   updatePlan,
 } from '../../services/api';
 
@@ -12,11 +13,14 @@ import type {
   Plan,
 } from '../../types/plan';
 
+import { matchesSearch } from '../../utils/search';
+
 import { PlanForm } from './PlanForm';
 import { PlanTable } from './PlanTable';
 
 export function PlansPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -46,6 +50,17 @@ export function PlansPage() {
   useEffect(() => {
     loadPlans();
   }, []);
+
+  const filteredPlans = useMemo(
+    () =>
+      plans.filter((plan) =>
+        matchesSearch(
+          [plan.name, plan.description],
+          search,
+        ),
+      ),
+    [plans, search],
+  );
 
   const handleCreate = async (
     data: CreatePlanRequest,
@@ -98,6 +113,30 @@ export function PlansPage() {
     }
   };
 
+  const handleReactivate = async (
+    plan: Plan,
+  ) => {
+    const confirmed = window.confirm(
+      `¿Deseas reactivar el plan "${plan.name}"?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await reactivatePlan(plan.id);
+
+      await loadPlans();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'No se pudo reactivar el plan.',
+      );
+    }
+  };
+
   if (loading) {
     return <div>Cargando planes...</div>;
   }
@@ -131,6 +170,24 @@ export function PlansPage() {
         </div>
       )}
 
+      <div className="members-toolbar">
+        <div className="search-box">
+          <span>⌕</span>
+
+          <input
+            placeholder="Buscar por nombre o descripción..."
+            value={search}
+            onChange={(e) =>
+              setSearch(e.target.value)
+            }
+          />
+        </div>
+
+        <div className="members-count">
+          {filteredPlans.length} de {plans.length} planes
+        </div>
+      </div>
+
       {(showForm || editingPlan) && (
         <div className="modal-backdrop">
           <div className="modal">
@@ -141,6 +198,7 @@ export function PlansPage() {
             </h2>
 
             <PlanForm
+              plan={editingPlan}
               onSubmit={
                 editingPlan
                   ? handleUpdate
@@ -156,12 +214,13 @@ export function PlansPage() {
       )}
 
       <PlanTable
-        plans={plans}
+        plans={filteredPlans}
         onEdit={(plan) => {
           setEditingPlan(plan);
           setShowForm(false);
         }}
         onDeactivate={handleDeactivate}
+        onReactivate={handleReactivate}
       />
     </section>
   );

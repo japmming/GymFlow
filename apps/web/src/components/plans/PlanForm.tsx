@@ -1,12 +1,17 @@
-import { useState } from 'react';
-import type { CreatePlanRequest } from '../../types/plan';
+import { useEffect, useState } from 'react';
+import type {
+  CreatePlanRequest,
+  Plan,
+} from '../../types/plan';
 
 interface PlanFormProps {
+  plan?: Plan | null;
   onSubmit: (data: CreatePlanRequest) => Promise<void>;
   onCancel: () => void;
 }
 
 export function PlanForm({
+  plan,
   onSubmit,
   onCancel,
 }: PlanFormProps) {
@@ -17,6 +22,21 @@ export function PlanForm({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (plan) {
+      setName(plan.name);
+      setDescription(plan.description ?? '');
+      setDurationDays(String(plan.durationDays));
+      setPrice(String(plan.price));
+      return;
+    }
+
+    setName('');
+    setDescription('');
+    setDurationDays('30');
+    setPrice('');
+  }, [plan]);
 
   const handleSubmit = async (
     event: React.FormEvent,
@@ -48,7 +68,7 @@ export function PlanForm({
 
       await onSubmit({
         name: name.trim(),
-        description: description.trim() || undefined,
+        description: description.trim() || null,
         durationDays: duration,
         price: planPrice,
       });

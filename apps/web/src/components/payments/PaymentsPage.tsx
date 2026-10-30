@@ -15,11 +15,14 @@ import type {
   Payment,
 } from '../../types/payment';
 
+import { matchesSearch } from '../../utils/search';
+
 import { PaymentForm } from './PaymentForm';
 import { PaymentTable } from './PaymentTable';
 
 export function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [search, setSearch] = useState('');
   const [members, setMembers] = useState<Member[]>([]);
   const [memberships, setMemberships] = useState<
     Membership[]
@@ -132,6 +135,26 @@ export function PaymentsPage() {
       );
   }, [payments]);
 
+  const filteredPayments = useMemo(
+    () =>
+      payments.filter((payment) =>
+        matchesSearch(
+          [
+            payment.member.firstName,
+            payment.member.lastName,
+            payment.member.documentNumber,
+            payment.member.memberCode,
+            payment.membership.plan.name,
+            payment.reference,
+            payment.notes,
+            String(payment.amount),
+          ],
+          search,
+        ),
+      ),
+    [payments, search],
+  );
+
   if (loading) {
     return (
       <div className="page-container">
@@ -164,6 +187,25 @@ export function PaymentsPage() {
           {error}
         </div>
       )}
+
+      <div className="members-toolbar">
+        <div className="search-box">
+          <span>⌕</span>
+
+          <input
+            placeholder="Buscar por socio, DNI, código, plan o referencia..."
+            value={search}
+            onChange={(e) =>
+              setSearch(e.target.value)
+            }
+          />
+        </div>
+
+        <div className="members-count">
+          {filteredPayments.length} de {payments.length}{' '}
+          pagos
+        </div>
+      </div>
 
       <div className="summary-grid">
         <div className="summary-card">
@@ -209,7 +251,7 @@ export function PaymentsPage() {
         </div>
 
         <PaymentTable
-          payments={payments}
+          payments={filteredPayments}
           onReverse={handleReversePayment}
           reversing={submitting}
         />

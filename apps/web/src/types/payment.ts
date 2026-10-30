@@ -11,6 +11,7 @@ export interface PaymentMember {
   firstName: string;
   lastName: string;
   documentNumber?: string | null;
+  memberCode?: string | null;
 }
 
 export interface PaymentPlan {

@@ -71,4 +71,17 @@ export class PlansService {
       },
     });
   }
+
+  async reactivate(gymId: string, id: string) {
+    await this.findOne(gymId, id);
+
+    return this.prisma.plan.update({
+      where: {
+        id,
+      },
+      data: {
+        active: true,
+      },
+    });
+  }
 }

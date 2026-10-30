@@ -8,12 +8,14 @@ interface MemberTableProps {
   members: Member[];
   onEdit: (member: Member) => void;
   onDeactivate: (member: Member) => void;
+  onReactivate: (member: Member) => void;
 }
 
 export function MemberTable({
   members,
   onEdit,
   onDeactivate,
+  onReactivate,
 }: MemberTableProps) {
   const [selectedMemberQr, setSelectedMemberQr] = useState<Member | null>(null);
 
@@ -145,6 +147,15 @@ export function MemberTable({
                         onClick={() => onDeactivate(member)}
                       >
                         Desactivar
+                      </button>
+                    )}
+
+                    {member.status === 'INACTIVE' && (
+                      <button
+                        className="table-action"
+                        onClick={() => onReactivate(member)}
+                      >
+                        Reactivar
                       </button>
                     )}
                     <button

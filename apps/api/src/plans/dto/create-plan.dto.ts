@@ -21,7 +21,7 @@ export class CreatePlanDto {
   @IsString()
   @MaxLength(255)
   @ApiProperty()
-  description?: string;
+  description?: string | null;
 
   @IsInt()
   @Min(1)

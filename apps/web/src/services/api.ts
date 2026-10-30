@@ -104,6 +104,14 @@ export const deactivatePlan = async (
   });
 };
 
+export const reactivatePlan = async (
+  id: string,
+): Promise<Plan> => {
+  return request<Plan>(`/plans/${id}/reactivate`, {
+    method: 'POST',
+  });
+};
+
 export const getMemberships = async (): Promise<Membership[]> => {
   return request<Membership[]>('/memberships');
 };
@@ -155,6 +163,14 @@ export const getMembers = async (): Promise<Member[]> => {
   } while (page <= totalPages);
 
   return members;
+};
+
+export const reactivateMember = async (
+  id: string,
+): Promise<Member> => {
+  return request<Member>(`/members/${id}/reactivate`, {
+    method: 'POST',
+  });
 };
 
 export const getDashboard = async (): Promise<DashboardSummary> => {

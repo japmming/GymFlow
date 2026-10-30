@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { api } from '../../services/api';
+import { api, reactivateMember } from '../../services/api';
 
 import type {
   CreateMemberRequest,
@@ -150,6 +150,32 @@ export function MembersPage() {
     setPage(1);
   }
 
+  async function handleReactivate(
+    member: Member,
+  ) {
+    const confirmed = window.confirm(
+      `¿Deseas reactivar a ${member.firstName} ${member.lastName}?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setError(null);
+
+      await reactivateMember(member.id);
+
+      await loadMembers();
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo reactivar el socio.',
+      );
+    }
+  }
+
   return (
     <section className="members-page">
       <div className="page-header">
@@ -179,7 +205,7 @@ export function MembersPage() {
           <span>⌕</span>
 
           <input
-            placeholder="Buscar por nombre o DNI..."
+            placeholder="Buscar por nombre, apellido, DNI o código..."
             value={search}
             onChange={(e) =>
               handleSearch(e.target.value)
@@ -208,6 +234,7 @@ export function MembersPage() {
             members={members}
             onEdit={handleEdit}
             onDeactivate={handleDeactivate}
+            onReactivate={handleReactivate}
           />
 
           {totalPages > 1 && (

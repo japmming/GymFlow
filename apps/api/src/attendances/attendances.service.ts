@@ -7,6 +7,7 @@ import {
 
 import { parseDateKey, todayDateKey } from '../common/date.utils';
 import { getGymTimezone } from '../common/gym-timezone';
+import { buildMemberSearchTerms } from '../common/member-search';
 import { withPaymentSummary } from '../common/payment-summary';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -288,7 +289,7 @@ export class AttendancesService {
       );
     }
 
-    const searchTerms = search?.trim().split(/\s+/).filter(Boolean) ?? [];
+    const searchTerms = buildMemberSearchTerms(search);
 
     const where = {
       gymId,
@@ -300,11 +301,11 @@ export class AttendancesService {
             },
           }
         : {}),
-      ...(searchTerms.length > 0
+      ...(searchTerms
         ? {
             member: {
               is: {
-                AND: searchTerms.map(buildMemberSearchTerm),
+                AND: searchTerms,
               },
             },
           }
@@ -337,37 +338,6 @@ export class AttendancesService {
       },
     };
   }
-}
-
-function buildMemberSearchTerm(term: string) {
-  return {
-    OR: [
-      {
-        firstName: {
-          contains: term,
-          mode: 'insensitive' as const,
-        },
-      },
-      {
-        lastName: {
-          contains: term,
-          mode: 'insensitive' as const,
-        },
-      },
-      {
-        documentNumber: {
-          contains: term,
-          mode: 'insensitive' as const,
-        },
-      },
-      {
-        memberCode: {
-          contains: term,
-          mode: 'insensitive' as const,
-        },
-      },
-    ],
-  };
 }
 
 function parseQueryDate(value: string, label: 'desde' | 'hasta'): Date {

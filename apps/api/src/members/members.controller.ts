@@ -47,4 +47,9 @@ export class MembersController {
   deactivate(@Param('id') id: string) {
     return this.membersService.deactivate(this.gymId, id);
   }
+
+  @Post(':id/reactivate')
+  reactivate(@Param('id') id: string) {
+    return this.membersService.reactivate(this.gymId, id);
+  }
 }

@@ -4,12 +4,14 @@ interface PlanTableProps {
   plans: Plan[];
   onEdit: (plan: Plan) => void;
   onDeactivate: (plan: Plan) => void;
+  onReactivate: (plan: Plan) => void;
 }
 
 export function PlanTable({
   plans,
   onEdit,
   onDeactivate,
+  onReactivate,
 }: PlanTableProps) {
   if (plans.length === 0) {
     return (
@@ -84,6 +86,17 @@ export function PlanTable({
                       }
                     >
                       Desactivar
+                    </button>
+                  )}
+
+                  {!plan.active && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onReactivate(plan)
+                      }
+                    >
+                      Reactivar
                     </button>
                   )}
                 </div>

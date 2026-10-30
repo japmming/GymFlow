@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import {
   cancelMembership,
@@ -11,12 +11,15 @@ import {
 import type { Member } from '../../types/member';
 import type { Plan } from '../../types/plan';
 import type {CreateMembershipRequest, Membership,} from '../../types/membership';
+import { matchesSearch } from '../../utils/search';
 import { MembershipForm } from './MembershipForm';
 import { MembershipTable } from './MembershipTable';
 
 export function MembershipsPage() {
   const [memberships, setMemberships] =
     useState<Membership[]>([]);
+
+  const [search, setSearch] = useState('');
 
   const [members, setMembers] =
     useState<Member[]>([]);
@@ -68,6 +71,24 @@ export function MembershipsPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const filteredMemberships = useMemo(
+    () =>
+      memberships.filter((membership) =>
+        matchesSearch(
+          [
+            membership.member.firstName,
+            membership.member.lastName,
+            membership.member.documentNumber,
+            membership.member.memberCode,
+            membership.plan.name,
+            membership.cancellationReason,
+          ],
+          search,
+        ),
+      ),
+    [memberships, search],
+  );
 
   const handleCreate = async (
     data: CreateMembershipRequest,
@@ -147,6 +168,25 @@ export function MembershipsPage() {
         </div>
       )}
 
+      <div className="members-toolbar">
+        <div className="search-box">
+          <span>⌕</span>
+
+          <input
+            placeholder="Buscar por socio, DNI, código o plan..."
+            value={search}
+            onChange={(e) =>
+              setSearch(e.target.value)
+            }
+          />
+        </div>
+
+        <div className="members-count">
+          {filteredMemberships.length} de{' '}
+          {memberships.length} membresías
+        </div>
+      </div>
+
       {showForm && (
         <div className="modal-backdrop">
           <div className="modal">
@@ -167,7 +207,7 @@ export function MembershipsPage() {
       )}
 
       <MembershipTable
-        memberships={memberships}
+        memberships={filteredMemberships}
         onCancel={handleCancel}
         cancellingId={cancellingId}
       />

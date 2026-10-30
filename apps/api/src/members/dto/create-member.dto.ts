@@ -22,23 +22,23 @@ export class CreateMemberDto {
   @IsString()
   @MaxLength(30)
   @ApiProperty()
-  documentNumber?: string;
+  documentNumber?: string | null;
 
   @IsOptional()
   @IsString()
   @MaxLength(30)
   @ApiProperty({ required: false })
-  memberCode?: string;
+  memberCode?: string | null;
 
   @IsOptional()
   @IsString()
   @MaxLength(30)
   @ApiProperty()
-  phone?: string;
+  phone?: string | null;
 
   @IsOptional()
   @IsEmail()
   @MaxLength(150)
   @ApiProperty()
-  email?: string;
+  email?: string | null;
 }

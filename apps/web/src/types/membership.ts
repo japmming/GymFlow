@@ -8,6 +8,7 @@ export interface MembershipMember {
   firstName: string;
   lastName: string;
   documentNumber?: string | null;
+  memberCode?: string | null;
 }
 
 export interface MembershipPlan {

@@ -11,7 +11,7 @@ export interface Plan {
 
 export interface CreatePlanRequest {
   name: string;
-  description?: string;
+  description?: string | null;
   durationDays: number;
   price: number;
   active?: boolean;

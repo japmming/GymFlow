@@ -76,11 +76,11 @@ export function MemberForm({
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
       documentNumber:
-        form.documentNumber.trim() || undefined,
+        form.documentNumber.trim() || null,
       memberCode:
         form.memberCode.trim() || undefined,
-      phone: form.phone.trim() || undefined,
-      email: form.email.trim() || undefined,
+      phone: form.phone.trim() || null,
+      email: form.email.trim() || null,
     });
   }
 

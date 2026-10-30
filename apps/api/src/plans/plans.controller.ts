@@ -43,4 +43,9 @@ export class PlansController {
   deactivate(@Param('id') id: string) {
     return this.plansService.deactivate(this.gymId, id);
   }
+
+  @Post(':id/reactivate')
+  reactivate(@Param('id') id: string) {
+    return this.plansService.reactivate(this.gymId, id);
+  }
 }
