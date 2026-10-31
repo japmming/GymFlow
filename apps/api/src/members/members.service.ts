@@ -1,8 +1,9 @@
-import { randomInt } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 
 import {
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 
@@ -11,11 +12,14 @@ import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 import { CreateMemberDto } from './dto/create-member.dto';
+import { RegenerateQrTokenDto } from './dto/regenerate-qr-token.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { QueryMemberDto } from './dto/query-member.dto';
 
 @Injectable()
 export class MembersService {
+  private readonly logger = new Logger(MembersService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(gymId: string, query: QueryMemberDto) {
@@ -251,5 +255,33 @@ export class MembersService {
         status: 'ACTIVE',
       },
     });
+  }
+
+  async regenerateQrToken(
+    gymId: string,
+    id: string,
+    dto: RegenerateQrTokenDto,
+  ) {
+    const member = await this.findOne(gymId, id);
+
+    const reason =
+      dto.reason?.trim() || 'Regeneración manual desde la interfaz';
+
+    const updatedMember = await this.prisma.member.update({
+      where: {
+        id: member.id,
+      },
+      data: {
+        qrToken: randomUUID(),
+        qrTokenRegeneratedAt: new Date(),
+        qrTokenRegenerationReason: reason,
+      },
+    });
+
+    this.logger.log(
+      `QR regenerado para el socio ${member.memberCode} (${member.id}). Motivo: ${reason}`,
+    );
+
+    return updatedMember;
   }
 }

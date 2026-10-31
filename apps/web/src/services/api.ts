@@ -173,6 +173,16 @@ export const reactivateMember = async (
   });
 };
 
+export const regenerateMemberQr = async (
+  id: string,
+  reason?: string,
+): Promise<Member> => {
+  return request<Member>(`/members/${id}/qr-token/regenerate`, {
+    method: 'POST',
+    body: JSON.stringify({ reason: reason ?? null }),
+  });
+};
+
 export const getDashboard = async (): Promise<DashboardSummary> => {
   return request<DashboardSummary>('/dashboard');
 };

@@ -160,7 +160,7 @@ export function MemberTable({
                     )}
                     <button
                       type="button"
-                      className="secondary-button"
+                      className="table-action"
                       onClick={() =>
                         setSelectedMemberQr(member)
                       }
@@ -177,8 +177,20 @@ export function MemberTable({
       </div>
       {selectedMemberQr && (
         <MemberQr
+          memberId={selectedMemberQr.id}
           memberName={`${selectedMemberQr.firstName} ${selectedMemberQr.lastName}`}
+          memberCode={selectedMemberQr.memberCode}
           qrToken={selectedMemberQr.qrToken}
+          onTokenChange={(qrToken) => {
+            setSelectedMemberQr((current) =>
+              current
+                ? {
+                    ...current,
+                    qrToken,
+                  }
+                : current,
+            );
+          }}
           onClose={() => setSelectedMemberQr(null)}
         />
       )}

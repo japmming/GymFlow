@@ -25,6 +25,8 @@ export interface Member {
   email: string | null;
   status: MemberStatus;
   qrToken: string;
+  qrTokenRegeneratedAt?: string | null;
+  qrTokenRegenerationReason?: string | null;
   latestMembership?: LatestMembership | null;
   createdAt: string;
   updatedAt: string;

@@ -12,6 +12,7 @@ import {
 import { MembersService } from './members.service';
 
 import { CreateMemberDto } from './dto/create-member.dto';
+import { RegenerateQrTokenDto } from './dto/regenerate-qr-token.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { QueryMemberDto } from './dto/query-member.dto';
 
@@ -51,5 +52,13 @@ export class MembersController {
   @Post(':id/reactivate')
   reactivate(@Param('id') id: string) {
     return this.membersService.reactivate(this.gymId, id);
+  }
+
+  @Post(':id/qr-token/regenerate')
+  regenerateQrToken(
+    @Param('id') id: string,
+    @Body() dto: RegenerateQrTokenDto,
+  ) {
+    return this.membersService.regenerateQrToken(this.gymId, id, dto);
   }
 }

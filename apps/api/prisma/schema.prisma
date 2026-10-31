@@ -33,18 +33,20 @@ model Gym {
 }
 
 model Member {
-  id             String       @id @default(uuid()) @db.Uuid
-  gymId          String       @db.Uuid
-  firstName      String       @db.VarChar(100)
-  lastName       String       @db.VarChar(100)
-  documentNumber String?      @db.VarChar(30)
-  memberCode     String       @db.VarChar(30)
-  phone          String?      @db.VarChar(30)
-  email          String?      @db.VarChar(150)
-  qrToken        String       @unique @default(uuid()) @db.Uuid
-  status         MemberStatus @default(ACTIVE)
-  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime     @updatedAt @db.Timestamptz(3)
+  id                        String       @id @default(uuid()) @db.Uuid
+  gymId                     String       @db.Uuid
+  firstName                 String       @db.VarChar(100)
+  lastName                  String       @db.VarChar(100)
+  documentNumber            String?      @db.VarChar(30)
+  memberCode                String       @db.VarChar(30)
+  phone                     String?      @db.VarChar(30)
+  email                     String?      @db.VarChar(150)
+  qrToken                   String       @unique @default(uuid()) @db.Uuid
+  qrTokenRegeneratedAt      DateTime?    @db.Timestamptz(3)
+  qrTokenRegenerationReason String?      @db.VarChar(255)
+  status                    MemberStatus @default(ACTIVE)
+  createdAt                 DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt                 DateTime     @updatedAt @db.Timestamptz(3)
 
   gym Gym @relation(fields: [gymId], references: [id], onDelete: Restrict)
 
