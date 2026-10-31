@@ -2,6 +2,7 @@ import type { Payment } from '../../types/payment';
 
 interface PaymentTableProps {
   payments: Payment[];
+  canReverse: boolean;
   onReverse: (payment: Payment) => void;
   reversing: boolean;
 }
@@ -28,6 +29,7 @@ const formatDate = (value: string) => {
 
 export function PaymentTable({
   payments,
+  canReverse,
   onReverse,
   reversing,
 }: PaymentTableProps) {
@@ -115,7 +117,7 @@ export function PaymentTable({
               </td>
 
               <td>
-                {payment.status === 'COMPLETED' && (
+                {canReverse && payment.status === 'COMPLETED' && (
                   <div className="table-actions">
                     <button
                       type="button"

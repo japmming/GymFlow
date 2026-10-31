@@ -8,6 +8,8 @@ import { MembershipsModule } from './memberships/memberships.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { PaymentsModule } from './payments/payments.module';
 import { AttendancesModule } from './attendances/attendances.module';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -15,6 +17,7 @@ import { AttendancesModule } from './attendances/attendances.module';
       isGlobal: true,
     }),
     PrismaModule,
+    AuthModule,
     HealthModule,
     MembersModule,
     PlansModule,
@@ -22,6 +25,7 @@ import { AttendancesModule } from './attendances/attendances.module';
     DashboardModule,
     PaymentsModule,
     AttendancesModule,
+    UsersModule,
   ],
 })
 export class AppModule {}

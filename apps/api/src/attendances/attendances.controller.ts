@@ -1,5 +1,9 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 
+import type { AuthenticatedUser } from '../auth/authenticated-user';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+
 import { AttendancesService } from './attendances.service';
 import { CancelAttendanceDto } from './dto/cancel-attendance.dto';
 import { CheckInDto } from './dto/check-in.dto';
@@ -10,30 +14,31 @@ export class AttendancesController {
   constructor(private readonly attendancesService: AttendancesService) {}
 
   @Get()
-  async findAll(@Query() query: QueryAttendanceDto) {
-    const gymId = '00000000-0000-0000-0000-000000000001';
-
-    return this.attendancesService.findAll(gymId, query);
+  findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: QueryAttendanceDto,
+  ) {
+    return this.attendancesService.findAll(user.gymId, query);
   }
 
   @Post('check-in')
-  async checkIn(@Body() dto: CheckInDto) {
-    const gymId = '00000000-0000-0000-0000-000000000001';
-
-    return this.attendancesService.checkIn(gymId, dto);
+  checkIn(@CurrentUser() user: AuthenticatedUser, @Body() dto: CheckInDto) {
+    return this.attendancesService.checkIn(user.gymId, dto);
   }
 
+  @Roles('ADMIN')
   @Post(':id/cancel')
-  async cancel(@Param('id') id: string, @Body() dto: CancelAttendanceDto) {
-    const gymId = '00000000-0000-0000-0000-000000000001';
-
-    return this.attendancesService.cancel(gymId, id, dto);
+  cancel(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: CancelAttendanceDto,
+  ) {
+    return this.attendancesService.cancel(user.gymId, id, dto);
   }
 
+  @Roles('ADMIN')
   @Post(':id/restore')
-  async restore(@Param('id') id: string) {
-    const gymId = '00000000-0000-0000-0000-000000000001';
-
-    return this.attendancesService.restore(gymId, id);
+  restore(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.attendancesService.restore(user.gymId, id);
   }
 }

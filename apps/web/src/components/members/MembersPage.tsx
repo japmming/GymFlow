@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { useAuth } from '../../auth/AuthProvider';
 import { api, reactivateMember } from '../../services/api';
 
 import type {
@@ -12,6 +13,8 @@ import { MemberForm } from './MemberForm';
 import { MemberTable } from './MemberTable';
 
 export function MembersPage() {
+  const { isAdmin } = useAuth();
+
   const [members, setMembers] = useState<Member[]>(
     [],
   );
@@ -232,6 +235,7 @@ export function MembersPage() {
         <>
           <MemberTable
             members={members}
+            canManage={isAdmin}
             onEdit={handleEdit}
             onDeactivate={handleDeactivate}
             onReactivate={handleReactivate}

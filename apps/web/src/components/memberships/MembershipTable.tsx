@@ -4,12 +4,14 @@ import { getMembershipState } from '../../utils/membershipStatus';
 
 interface MembershipTableProps {
   memberships: Membership[];
+  canCancel: boolean;
   onCancel: (membership: Membership) => void;
   cancellingId: string | null;
 }
 
 export function MembershipTable({
   memberships,
+  canCancel,
   onCancel,
   cancellingId,
 }: MembershipTableProps) {
@@ -116,8 +118,9 @@ export function MembershipTable({
                 </td>
 
                 <td>
-                  {membership.status !==
-                    'CANCELLED' && (
+                  {canCancel &&
+                    membership.status !==
+                      'CANCELLED' && (
                     <div className="table-actions">
                       <button
                         type="button"

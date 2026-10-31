@@ -1,14 +1,17 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
 
   app.setGlobalPrefix('api/v1');
+  app.use(cookieParser());
   app.enableCors({
     origin: process.env.WEB_ORIGIN ?? 'http://localhost:5173',
+    credentials: true,
   });
   app.useGlobalPipes(
     new ValidationPipe({
@@ -22,6 +25,7 @@ async function bootstrap(): Promise<void> {
     .setTitle('GymFlow API')
     .setDescription('API de gestión para gimnasios')
     .setVersion('1.0')
+    .addBearerAuth()
     .build();
   SwaggerModule.setup(
     'api/docs',

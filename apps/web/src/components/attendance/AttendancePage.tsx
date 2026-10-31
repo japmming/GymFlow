@@ -5,6 +5,7 @@ import {
 } from 'react';
 import type { FormEvent } from 'react';
 
+import { useAuth } from '../../auth/AuthProvider';
 import {
   cancelAttendance,
   checkIn,
@@ -28,6 +29,8 @@ const EMPTY_FILTERS = {
 };
 
 export function AttendancePage() {
+  const { isAdmin } = useAuth();
+
   const [attendances, setAttendances] = useState<
     Attendance[]
   >([]);
@@ -450,6 +453,7 @@ export function AttendancePage() {
           <>
             <AttendanceTable
               attendances={attendances}
+              canManage={isAdmin}
               onCancel={handleCancelAttendance}
               onRestore={handleRestoreAttendance}
               actionId={actionId}
@@ -578,11 +582,13 @@ function AttendanceSuccess({
 
 function AttendanceTable({
   attendances,
+  canManage,
   onCancel,
   onRestore,
   actionId,
 }: {
   attendances: Attendance[];
+  canManage: boolean;
   onCancel: (attendance: Attendance) => void;
   onRestore: (attendance: Attendance) => void;
   actionId: string | null;
@@ -669,37 +675,38 @@ function AttendanceTable({
 
               <td>
                 <div className="table-actions">
-                  {attendance.cancelled ? (
-                    <button
-                      type="button"
-                      className="table-action"
-                      onClick={() =>
-                        onRestore(attendance)
-                      }
-                      disabled={
-                        actionId === attendance.id
-                      }
-                    >
-                      {actionId === attendance.id
-                        ? 'Restaurando...'
-                        : 'Restaurar'}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="table-action danger"
-                      onClick={() =>
-                        onCancel(attendance)
-                      }
-                      disabled={
-                        actionId === attendance.id
-                      }
-                    >
-                      {actionId === attendance.id
-                        ? 'Anulando...'
-                        : 'Anular'}
-                    </button>
-                  )}
+                  {canManage &&
+                    (attendance.cancelled ? (
+                      <button
+                        type="button"
+                        className="table-action"
+                        onClick={() =>
+                          onRestore(attendance)
+                        }
+                        disabled={
+                          actionId === attendance.id
+                        }
+                      >
+                        {actionId === attendance.id
+                          ? 'Restaurando...'
+                          : 'Restaurar'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="table-action danger"
+                        onClick={() =>
+                          onCancel(attendance)
+                        }
+                        disabled={
+                          actionId === attendance.id
+                        }
+                      >
+                        {actionId === attendance.id
+                          ? 'Anulando...'
+                          : 'Anular'}
+                      </button>
+                    ))}
                 </div>
               </td>
             </tr>

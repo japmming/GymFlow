@@ -9,6 +9,10 @@ import {
   Query,
 } from '@nestjs/common';
 
+import type { AuthenticatedUser } from '../auth/authenticated-user';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+
 import { MembersService } from './members.service';
 
 import { CreateMemberDto } from './dto/create-member.dto';
@@ -20,45 +24,51 @@ import { QueryMemberDto } from './dto/query-member.dto';
 export class MembersController {
   constructor(private readonly membersService: MembersService) {}
 
-  // Temporalmente utilizaremos este gimnasio.
-  // Más adelante vendrá del usuario autenticado.
-  private readonly gymId = '00000000-0000-0000-0000-000000000001';
-
   @Get()
-  findAll(@Query() query: QueryMemberDto) {
-    return this.membersService.findAll(this.gymId, query);
+  findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: QueryMemberDto,
+  ) {
+    return this.membersService.findAll(user.gymId, query);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.membersService.findOne(this.gymId, id);
+  findOne(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.membersService.findOne(user.gymId, id);
   }
 
   @Post()
-  create(@Body() dto: CreateMemberDto) {
-    return this.membersService.create(this.gymId, dto);
+  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateMemberDto) {
+    return this.membersService.create(user.gymId, dto);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateMemberDto) {
-    return this.membersService.update(this.gymId, id, dto);
+  update(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateMemberDto,
+  ) {
+    return this.membersService.update(user.gymId, id, dto);
   }
 
+  @Roles('ADMIN')
   @Delete(':id')
-  deactivate(@Param('id') id: string) {
-    return this.membersService.deactivate(this.gymId, id);
+  deactivate(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.membersService.deactivate(user.gymId, id);
   }
 
+  @Roles('ADMIN')
   @Post(':id/reactivate')
-  reactivate(@Param('id') id: string) {
-    return this.membersService.reactivate(this.gymId, id);
+  reactivate(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.membersService.reactivate(user.gymId, id);
   }
 
   @Post(':id/qr-token/regenerate')
   regenerateQrToken(
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
     @Body() dto: RegenerateQrTokenDto,
   ) {
-    return this.membersService.regenerateQrToken(this.gymId, id, dto);
+    return this.membersService.regenerateQrToken(user.gymId, id, dto);
   }
 }

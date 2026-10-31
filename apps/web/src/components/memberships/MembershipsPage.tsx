@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
+import { useAuth } from '../../auth/AuthProvider';
 import {
   cancelMembership,
   createMembership,
@@ -10,12 +11,17 @@ import {
 
 import type { Member } from '../../types/member';
 import type { Plan } from '../../types/plan';
-import type {CreateMembershipRequest, Membership,} from '../../types/membership';
+import type {
+  CreateMembershipRequest,
+  Membership,
+} from '../../types/membership';
 import { matchesSearch } from '../../utils/search';
 import { MembershipForm } from './MembershipForm';
 import { MembershipTable } from './MembershipTable';
 
 export function MembershipsPage() {
+  const { isAdmin } = useAuth();
+
   const [memberships, setMemberships] =
     useState<Membership[]>([]);
 
@@ -208,6 +214,7 @@ export function MembershipsPage() {
 
       <MembershipTable
         memberships={filteredMemberships}
+        canCancel={isAdmin}
         onCancel={handleCancel}
         cancellingId={cancellingId}
       />

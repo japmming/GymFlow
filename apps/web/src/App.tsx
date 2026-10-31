@@ -1,10 +1,13 @@
 import { lazy, Suspense, useState } from 'react';
 
+import { AuthProvider, useAuth } from './auth/AuthProvider';
+import { LoginPage } from './components/auth/LoginPage';
 import { MembersPage } from './components/members/MembersPage';
 import { PlansPage } from './components/plans/PlansPage';
 import { MembershipsPage } from './components/memberships/MembershipsPage';
 import { DashboardPage } from './components/dashboard/DashboardPage';
 import { PaymentsPage } from './components/payments/PaymentsPage';
+import { UsersPage } from './components/users/UsersPage';
 
 const AttendancePage = lazy(() =>
   import('./components/attendance/AttendancePage').then(
@@ -12,75 +15,142 @@ const AttendancePage = lazy(() =>
   ),
 );
 
-type Page = 'members' | 'plans' | 'memberships' | 'dashboard' | 'payments' | 'attendance';
+type Page =
+  | 'members'
+  | 'plans'
+  | 'memberships'
+  | 'dashboard'
+  | 'payments'
+  | 'attendance'
+  | 'users';
 
-function App() {
+interface NavItem {
+  page: Page;
+  label: string;
+  adminOnly?: boolean;
+}
+
+const navItems: NavItem[] = [
+  { page: 'dashboard', label: 'Dashboard' },
+  { page: 'attendance', label: 'Asistencia' },
+  { page: 'members', label: 'Miembros' },
+  { page: 'memberships', label: 'Membresías' },
+  { page: 'payments', label: 'Pagos' },
+  { page: 'plans', label: 'Planes', adminOnly: true },
+  { page: 'users', label: 'Usuarios', adminOnly: true },
+];
+
+function AppShell() {
+  const { user, loading, isAdmin, logout } = useAuth();
+
   const [page, setPage] = useState<Page>('dashboard');
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  if (loading) {
+    return (
+      <div className="app-loading">
+        <span className="app-spinner" />
+        Cargando sesión...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage />;
+  }
+
+  const allowedPage =
+    (page === 'plans' || page === 'users') && !isAdmin
+      ? 'dashboard'
+      : page;
+
+  const handleLogout = async () => {
+    try {
+      setLoggingOut(true);
+
+      await logout();
+    } finally {
+      setLoggingOut(false);
+    }
+  };
 
   return (
     <div className="app">
       <header className="app-header">
-        <h1>GymFlow</h1>
+        <div className="app-brand">
+          <span className="app-logo">GF</span>
+          <h1>GymFlow</h1>
+        </div>
 
         <nav>
-          <button
-            type="button"
-            onClick={() => setPage('members')}
-          >
-            Miembros
-          </button>
+          {navItems
+            .filter((item) => !item.adminOnly || isAdmin)
+            .map((item) => (
+              <button
+                key={item.page}
+                type="button"
+                className={
+                  allowedPage === item.page ? 'active' : undefined
+                }
+                onClick={() => setPage(item.page)}
+              >
+                {item.label}
+              </button>
+            ))}
+        </nav>
+
+        <div className="app-session">
+          <div className="app-user">
+            <strong>
+              {user.firstName} {user.lastName}
+            </strong>
+
+            <span>
+              {user.role === 'ADMIN'
+                ? 'Administrador'
+                : 'Recepción'}
+            </span>
+          </div>
 
           <button
             type="button"
-            onClick={() => setPage('plans')}
+            className="app-logout"
+            onClick={handleLogout}
+            disabled={loggingOut}
           >
-            Planes
+            {loggingOut ? 'Saliendo...' : 'Salir'}
           </button>
-          <button
-            type="button"
-            onClick={() => setPage('memberships')}
-          >
-            Membresías
-          </button>
-          <button
-            type="button"
-            onClick={() => setPage('dashboard')}
-          >
-            Dashboard
-          </button>
-          <button
-            type="button"
-            onClick={() => setPage('payments')}
-          >
-            Pagos
-          </button>
-          <button
-            type="button"
-            onClick={() => setPage('attendance')}
-          >
-            Asistencia
-          </button>
-        </nav>
+        </div>
       </header>
 
       <main className="app-content">
-        {page === 'members' && <MembersPage />}
+        {allowedPage === 'members' && <MembersPage />}
 
-        {page === 'plans' && <PlansPage />}
+        {allowedPage === 'plans' && <PlansPage />}
 
-        {page === 'memberships' && <MembershipsPage />}
+        {allowedPage === 'memberships' && <MembershipsPage />}
 
-        {page === 'dashboard' && <DashboardPage />}
+        {allowedPage === 'dashboard' && <DashboardPage />}
 
-        {page === 'payments' && <PaymentsPage />}
+        {allowedPage === 'payments' && <PaymentsPage />}
 
-        {page === 'attendance' && (
+        {allowedPage === 'users' && <UsersPage />}
+
+        {allowedPage === 'attendance' && (
           <Suspense fallback={<p>Cargando asistencia...</p>}>
             <AttendancePage />
           </Suspense>
         )}
       </main>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppShell />
+    </AuthProvider>
   );
 }
 

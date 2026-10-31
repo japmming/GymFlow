@@ -1,5 +1,8 @@
-import type { CreatePlanRequest, Plan,} from '../types/plan';
-import type {CreateMembershipRequest, Membership,} from '../types/membership';
+import type { CreatePlanRequest, Plan } from '../types/plan';
+import type {
+  CreateMembershipRequest,
+  Membership,
+} from '../types/membership';
 import type { Member } from '../types/member';
 import type { DashboardSummary } from '../types/dashboard';
 import type { CreatePaymentRequest, Payment } from '../types/payment';
@@ -9,39 +12,128 @@ import type {
   AttendancesResponse,
   CheckInRequest,
 } from '../types/attendance';
+import type {
+  AuthSession,
+  AuthUser,
+  CreateUserRequest,
+  ManagedUser,
+  UpdateUserRequest,
+} from '../types/auth';
 
 const API_URL =
   import.meta.env.VITE_API_URL ??
   'http://localhost:3000/api/v1';
 
+let accessToken: string | null = null;
+let refreshPromise: Promise<AuthSession | null> | null = null;
+let refreshedHandler: ((user: AuthUser) => void) | null = null;
+let expiredHandler: (() => void) | null = null;
+
+export function setAccessToken(token: string | null): void {
+  accessToken = token;
+}
+
+export function setSessionHandlers(handlers: {
+  onRefreshed?: (user: AuthUser) => void;
+  onExpired?: () => void;
+}): () => void {
+  refreshedHandler = handlers.onRefreshed ?? null;
+  expiredHandler = handlers.onExpired ?? null;
+
+  return () => {
+    refreshedHandler = null;
+    expiredHandler = null;
+  };
+}
+
+async function readErrorMessage(
+  response: Response,
+): Promise<string> {
+  let message = 'Ocurrió un error en la solicitud.';
+
+  try {
+    const error = await response.json();
+
+    if (typeof error.message === 'string') {
+      message = error.message;
+    } else if (Array.isArray(error.message)) {
+      message = error.message.join(', ');
+    }
+  } catch {
+    // Mantener mensaje genérico.
+  }
+
+  return message;
+}
+
+async function refreshSession(): Promise<AuthSession | null> {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      try {
+        const response = await fetch(`${API_URL}/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          return null;
+        }
+
+        const session = (await response.json()) as AuthSession;
+
+        accessToken = session.accessToken;
+        refreshedHandler?.(session.user);
+
+        return session;
+      } catch {
+        return null;
+      } finally {
+        refreshPromise = null;
+      }
+    })();
+  }
+
+  return refreshPromise;
+}
+
 async function request<T>(
   endpoint: string,
   options?: RequestInit,
+  retried = false,
 ): Promise<T> {
   const response = await fetch(`${API_URL}${endpoint}`, {
+    ...options,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
+      ...(accessToken
+        ? { Authorization: `Bearer ${accessToken}` }
+        : {}),
       ...options?.headers,
     },
-    ...options,
   });
 
-  if (!response.ok) {
-    let message = 'Ocurrió un error en la solicitud.';
+  if (
+    response.status === 401 &&
+    !retried &&
+    !endpoint.startsWith('/auth/')
+  ) {
+    const session = await refreshSession();
 
-    try {
-      const error = await response.json();
-
-      if (typeof error.message === 'string') {
-        message = error.message;
-      } else if (Array.isArray(error.message)) {
-        message = error.message.join(', ');
-      }
-    } catch {
-      // Mantener mensaje genérico.
+    if (session) {
+      return request<T>(endpoint, options, true);
     }
 
-    throw new Error(message);
+    accessToken = null;
+    expiredHandler?.();
+  }
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   return response.json();
@@ -67,6 +159,60 @@ export const api = {
     request<T>(endpoint, {
       method: 'DELETE',
     }),
+};
+
+export const login = async (
+  email: string,
+  password: string,
+): Promise<AuthSession> => {
+  return request<AuthSession>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+};
+
+export const restoreSession = async (): Promise<AuthSession | null> => {
+  const session = await refreshSession();
+
+  if (!session) {
+    accessToken = null;
+  }
+
+  return session;
+};
+
+export const logout = async (): Promise<void> => {
+  try {
+    await fetch(`${API_URL}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+  } finally {
+    accessToken = null;
+  }
+};
+
+export const getUsers = async (): Promise<ManagedUser[]> => {
+  return request<ManagedUser[]>('/users');
+};
+
+export const createUser = async (
+  data: CreateUserRequest,
+): Promise<ManagedUser> => {
+  return request<ManagedUser>('/users', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+
+export const updateUser = async (
+  id: string,
+  data: UpdateUserRequest,
+): Promise<ManagedUser> => {
+  return request<ManagedUser>(`/users/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
 };
 
 export const getPlans = async (): Promise<Plan[]> => {

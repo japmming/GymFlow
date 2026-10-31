@@ -8,6 +8,10 @@ import {
   Post,
 } from '@nestjs/common';
 
+import type { AuthenticatedUser } from '../auth/authenticated-user';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+
 import { PlansService } from './plans.service';
 
 import { CreatePlanDto } from './dto/create-plan.dto';
@@ -15,37 +19,43 @@ import { UpdatePlanDto } from './dto/update-plan.dto';
 
 @Controller('plans')
 export class PlansController {
-  private readonly gymId = '00000000-0000-0000-0000-000000000001';
-
   constructor(private readonly plansService: PlansService) {}
 
   @Get()
-  findAll() {
-    return this.plansService.findAll(this.gymId);
+  findAll(@CurrentUser() user: AuthenticatedUser) {
+    return this.plansService.findAll(user.gymId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.plansService.findOne(this.gymId, id);
+  findOne(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.plansService.findOne(user.gymId, id);
   }
 
+  @Roles('ADMIN')
   @Post()
-  create(@Body() dto: CreatePlanDto) {
-    return this.plansService.create(this.gymId, dto);
+  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreatePlanDto) {
+    return this.plansService.create(user.gymId, dto);
   }
 
+  @Roles('ADMIN')
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdatePlanDto) {
-    return this.plansService.update(this.gymId, id, dto);
+  update(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: UpdatePlanDto,
+  ) {
+    return this.plansService.update(user.gymId, id, dto);
   }
 
+  @Roles('ADMIN')
   @Delete(':id')
-  deactivate(@Param('id') id: string) {
-    return this.plansService.deactivate(this.gymId, id);
+  deactivate(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.plansService.deactivate(user.gymId, id);
   }
 
+  @Roles('ADMIN')
   @Post(':id/reactivate')
-  reactivate(@Param('id') id: string) {
-    return this.plansService.reactivate(this.gymId, id);
+  reactivate(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.plansService.reactivate(user.gymId, id);
   }
 }

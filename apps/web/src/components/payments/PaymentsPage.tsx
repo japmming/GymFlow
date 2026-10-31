@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
+import { useAuth } from '../../auth/AuthProvider';
 import {
   createPayment,
   getMembers,
@@ -21,6 +22,8 @@ import { PaymentForm } from './PaymentForm';
 import { PaymentTable } from './PaymentTable';
 
 export function PaymentsPage() {
+  const { isAdmin } = useAuth();
+
   const [payments, setPayments] = useState<Payment[]>([]);
   const [search, setSearch] = useState('');
   const [members, setMembers] = useState<Member[]>([]);
@@ -252,6 +255,7 @@ export function PaymentsPage() {
 
         <PaymentTable
           payments={filteredPayments}
+          canReverse={isAdmin}
           onReverse={handleReversePayment}
           reversing={submitting}
         />

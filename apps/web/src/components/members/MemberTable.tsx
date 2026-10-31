@@ -6,6 +6,7 @@ import { MemberQr } from './MemberQr';
 
 interface MemberTableProps {
   members: Member[];
+  canManage: boolean;
   onEdit: (member: Member) => void;
   onDeactivate: (member: Member) => void;
   onReactivate: (member: Member) => void;
@@ -13,6 +14,7 @@ interface MemberTableProps {
 
 export function MemberTable({
   members,
+  canManage,
   onEdit,
   onDeactivate,
   onReactivate,
@@ -141,7 +143,7 @@ export function MemberTable({
                       Editar
                     </button>
 
-                    {member.status === 'ACTIVE' && (
+                    {canManage && member.status === 'ACTIVE' && (
                       <button
                         className="table-action danger"
                         onClick={() => onDeactivate(member)}
@@ -150,7 +152,7 @@ export function MemberTable({
                       </button>
                     )}
 
-                    {member.status === 'INACTIVE' && (
+                    {canManage && member.status === 'INACTIVE' && (
                       <button
                         className="table-action"
                         onClick={() => onReactivate(member)}
