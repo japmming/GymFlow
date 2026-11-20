@@ -1,8 +1,9 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
+import { setupSwagger } from './swagger/swagger.setup';
+import { SWAGGER_PATH } from './swagger/swagger.constants';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
@@ -21,23 +22,16 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('GymFlow API')
-    .setDescription('API de gestión para gimnasios')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  SwaggerModule.setup(
-    'api/docs',
-    app,
-    SwaggerModule.createDocument(app, swaggerConfig),
-  );
+  setupSwagger(app);
 
   app.enableShutdownHooks();
 
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);
   console.log(`GymFlow API running at http://localhost:${port}/api/v1`);
+  console.log(
+    `Swagger docs available at http://localhost:${port}/${SWAGGER_PATH}`,
+  );
 }
 
 void bootstrap();

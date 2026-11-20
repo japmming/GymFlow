@@ -86,9 +86,11 @@ export function PlanForm({
   return (
     <form onSubmit={handleSubmit} className="form">
       <div className="form-group">
-        <label>Nombre</label>
+        <label htmlFor="plan-name">Nombre</label>
 
         <input
+          id="plan-name"
+          name="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Ej. Mensual"
@@ -96,9 +98,13 @@ export function PlanForm({
       </div>
 
       <div className="form-group">
-        <label>Descripción</label>
+        <label htmlFor="plan-description">
+          Descripción
+        </label>
 
         <textarea
+          id="plan-description"
+          name="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Descripción del plan"
@@ -107,10 +113,15 @@ export function PlanForm({
       </div>
 
       <div className="form-group">
-        <label>Duración (días)</label>
+        <label htmlFor="plan-duration">
+          Duración (días)
+        </label>
 
         <input
+          id="plan-duration"
+          name="durationDays"
           type="number"
+          inputMode="numeric"
           min="1"
           value={durationDays}
           onChange={(e) => setDurationDays(e.target.value)}
@@ -118,10 +129,13 @@ export function PlanForm({
       </div>
 
       <div className="form-group">
-        <label>Precio</label>
+        <label htmlFor="plan-price">Precio</label>
 
         <input
+          id="plan-price"
+          name="price"
           type="number"
+          inputMode="decimal"
           min="0"
           step="0.01"
           value={price}
@@ -131,7 +145,11 @@ export function PlanForm({
       </div>
 
       {error && (
-        <div className="error-message">
+        <div
+          id="plan-form-error"
+          className="error-message"
+          role="alert"
+        >
           {error}
         </div>
       )}
@@ -139,6 +157,7 @@ export function PlanForm({
       <div className="form-actions">
         <button
           type="button"
+          className="button secondary"
           onClick={onCancel}
           disabled={loading}
         >
@@ -147,7 +166,11 @@ export function PlanForm({
 
         <button
           type="submit"
+          className="button primary"
           disabled={loading}
+          aria-describedby={
+            error ? 'plan-form-error' : undefined
+          }
         >
           {loading ? 'Guardando...' : 'Guardar plan'}
         </button>

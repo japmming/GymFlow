@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
   createPlan,
@@ -15,10 +15,19 @@ import type {
 
 import { matchesSearch } from '../../utils/search';
 
+import { ActionDialog } from '../ui/ActionDialog';
+import { LoadingState } from '../ui/LoadingState';
+import { SearchField } from '../ui/SearchField';
+import { useToast } from '../ui/ToastProvider';
+import { Modal } from '../ui/Modal';
 import { PlanForm } from './PlanForm';
 import { PlanTable } from './PlanTable';
 
+type PlanAction = 'deactivate' | 'reactivate';
+
 export function PlansPage() {
+  const { notify } = useToast();
+
   const [plans, setPlans] = useState<Plan[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -28,28 +37,41 @@ export function PlansPage() {
   const [editingPlan, setEditingPlan] =
     useState<Plan | null>(null);
 
-  const loadPlans = async () => {
-    try {
-      setLoading(true);
-      setError('');
+  const [pendingAction, setPendingAction] = useState<{
+    plan: Plan;
+    action: PlanAction;
+  } | null>(null);
 
-      const data = await getPlans();
+  const loadPlans = useCallback(
+    async (mode: 'initial' | 'refresh' = 'initial') => {
+      try {
+        if (mode === 'initial') {
+          setLoading(true);
+        }
 
-      setPlans(data);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'No se pudieron cargar los planes.',
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+        setError('');
+
+        const data = await getPlans();
+
+        setPlans(data);
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'No se pudieron cargar los planes.',
+        );
+      } finally {
+        if (mode === 'initial') {
+          setLoading(false);
+        }
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
-    loadPlans();
-  }, []);
+    void loadPlans('initial');
+  }, [loadPlans]);
 
   const filteredPlans = useMemo(
     () =>
@@ -69,7 +91,9 @@ export function PlansPage() {
 
     setShowForm(false);
 
-    await loadPlans();
+    await loadPlans('refresh');
+
+    notify('Plan creado correctamente.');
   };
 
   const handleUpdate = async (
@@ -86,59 +110,37 @@ export function PlansPage() {
 
     setEditingPlan(null);
 
-    await loadPlans();
+    await loadPlans('refresh');
+
+    notify('Plan actualizado correctamente.');
   };
 
   const handleDeactivate = async (
     plan: Plan,
   ) => {
-    const confirmed = window.confirm(
-      `¿Deseas desactivar el plan "${plan.name}"?`,
-    );
+    await deactivatePlan(plan.id);
 
-    if (!confirmed) {
-      return;
-    }
+    await loadPlans('refresh');
 
-    try {
-      await deactivatePlan(plan.id);
-
-      await loadPlans();
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'No se pudo desactivar el plan.',
-      );
-    }
+    notify(`El plan "${plan.name}" fue desactivado.`);
   };
 
   const handleReactivate = async (
     plan: Plan,
   ) => {
-    const confirmed = window.confirm(
-      `¿Deseas reactivar el plan "${plan.name}"?`,
-    );
+    await reactivatePlan(plan.id);
 
-    if (!confirmed) {
-      return;
-    }
+    await loadPlans('refresh');
 
-    try {
-      await reactivatePlan(plan.id);
-
-      await loadPlans();
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'No se pudo reactivar el plan.',
-      );
-    }
+    notify(`El plan "${plan.name}" fue reactivado.`);
   };
 
   if (loading) {
-    return <div>Cargando planes...</div>;
+    return (
+      <div className="page-container">
+        <LoadingState label="Cargando planes..." />
+      </div>
+    );
   }
 
   return (
@@ -155,6 +157,7 @@ export function PlansPage() {
 
         <button
           type="button"
+          className="button primary"
           onClick={() => {
             setEditingPlan(null);
             setShowForm(true);
@@ -165,52 +168,48 @@ export function PlansPage() {
       </div>
 
       {error && (
-        <div className="error-message">
+        <div className="error-message" role="alert">
           {error}
         </div>
       )}
 
       <div className="members-toolbar">
-        <div className="search-box">
-          <span>⌕</span>
+        <SearchField
+          label="Buscar planes"
+          placeholder="Buscar por nombre o descripción..."
+          value={search}
+          onChange={setSearch}
+        />
 
-          <input
-            placeholder="Buscar por nombre o descripción..."
-            value={search}
-            onChange={(e) =>
-              setSearch(e.target.value)
-            }
-          />
-        </div>
-
-        <div className="members-count">
+        <div className="members-count" aria-live="polite">
           {filteredPlans.length} de {plans.length} planes
         </div>
       </div>
 
       {(showForm || editingPlan) && (
-        <div className="modal-backdrop">
-          <div className="modal">
-            <h2>
-              {editingPlan
-                ? 'Editar plan'
-                : 'Nuevo plan'}
-            </h2>
-
-            <PlanForm
-              plan={editingPlan}
-              onSubmit={
-                editingPlan
-                  ? handleUpdate
-                  : handleCreate
-              }
-              onCancel={() => {
-                setShowForm(false);
-                setEditingPlan(null);
-              }}
-            />
-          </div>
-        </div>
+        <Modal
+          title={
+            editingPlan ? 'Editar plan' : 'Nuevo plan'
+          }
+          description="Define el precio y la duración del plan."
+          onClose={() => {
+            setShowForm(false);
+            setEditingPlan(null);
+          }}
+        >
+          <PlanForm
+            plan={editingPlan}
+            onSubmit={
+              editingPlan
+                ? handleUpdate
+                : handleCreate
+            }
+            onCancel={() => {
+              setShowForm(false);
+              setEditingPlan(null);
+            }}
+          />
+        </Modal>
       )}
 
       <PlanTable
@@ -219,9 +218,46 @@ export function PlansPage() {
           setEditingPlan(plan);
           setShowForm(false);
         }}
-        onDeactivate={handleDeactivate}
-        onReactivate={handleReactivate}
+        onDeactivate={(plan) =>
+          setPendingAction({
+            plan,
+            action: 'deactivate',
+          })
+        }
+        onReactivate={(plan) =>
+          setPendingAction({
+            plan,
+            action: 'reactivate',
+          })
+        }
       />
+
+      {pendingAction && (
+        <ActionDialog
+          title={
+            pendingAction.action === 'deactivate'
+              ? 'Desactivar plan'
+              : 'Reactivar plan'
+          }
+          description={
+            pendingAction.action === 'deactivate'
+              ? `El plan "${pendingAction.plan.name}" dejará de estar disponible para nuevas membresías.`
+              : `El plan "${pendingAction.plan.name}" volverá a estar disponible para nuevas membresías.`
+          }
+          confirmLabel={
+            pendingAction.action === 'deactivate'
+              ? 'Desactivar'
+              : 'Reactivar'
+          }
+          danger={pendingAction.action === 'deactivate'}
+          onConfirm={() =>
+            pendingAction.action === 'deactivate'
+              ? handleDeactivate(pendingAction.plan)
+              : handleReactivate(pendingAction.plan)
+          }
+          onClose={() => setPendingAction(null)}
+        />
+      )}
     </section>
   );
 }

@@ -1,13 +1,33 @@
-import { lazy, Suspense, useState } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
 
 import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { LoginPage } from './components/auth/LoginPage';
-import { MembersPage } from './components/members/MembersPage';
-import { PlansPage } from './components/plans/PlansPage';
-import { MembershipsPage } from './components/memberships/MembershipsPage';
+import { DashboardDataProvider } from './components/dashboard/DashboardDataProvider';
 import { DashboardPage } from './components/dashboard/DashboardPage';
+import { Sidebar } from './components/layout/Sidebar';
+import { Topbar } from './components/layout/Topbar';
+import { MembersPage } from './components/members/MembersPage';
+import { MembershipsPage } from './components/memberships/MembershipsPage';
 import { PaymentsPage } from './components/payments/PaymentsPage';
+import { PlansPage } from './components/plans/PlansPage';
+import { LoadingState } from './components/ui/LoadingState';
+import { ToastProvider } from './components/ui/ToastProvider';
 import { UsersPage } from './components/users/UsersPage';
+import { ThemeProvider } from './theme/ThemeProvider';
+import {
+  DEFAULT_PAGE,
+  PAGE_LABELS,
+  navigateTo,
+  readPageFromHash,
+  type MembersIntent,
+  type Page,
+} from './types/navigation';
 
 const AttendancePage = lazy(() =>
   import('./components/attendance/AttendancePage').then(
@@ -15,41 +35,89 @@ const AttendancePage = lazy(() =>
   ),
 );
 
-type Page =
-  | 'members'
-  | 'plans'
-  | 'memberships'
-  | 'dashboard'
-  | 'payments'
-  | 'attendance'
-  | 'users';
-
-interface NavItem {
-  page: Page;
-  label: string;
-  adminOnly?: boolean;
-}
-
-const navItems: NavItem[] = [
-  { page: 'dashboard', label: 'Dashboard' },
-  { page: 'attendance', label: 'Asistencia' },
-  { page: 'members', label: 'Miembros' },
-  { page: 'memberships', label: 'Membresías' },
-  { page: 'payments', label: 'Pagos' },
-  { page: 'plans', label: 'Planes', adminOnly: true },
-  { page: 'users', label: 'Usuarios', adminOnly: true },
-];
+const EventsPage = lazy(() =>
+  import('./components/events/EventsPage').then(
+    (module) => ({ default: module.EventsPage }),
+  ),
+);
 
 function AppShell() {
   const { user, loading, isAdmin, logout } = useAuth();
 
-  const [page, setPage] = useState<Page>('dashboard');
+  const [page, setPage] = useState<Page>(
+    () => readPageFromHash() ?? DEFAULT_PAGE,
+  );
   const [loggingOut, setLoggingOut] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [membersIntent, setMembersIntent] =
+    useState<MembersIntent | null>(null);
+
+  const allowedPage =
+    (page === 'plans' || page === 'users') && !isAdmin
+      ? 'dashboard'
+      : page;
+
+  // Mantiene la página sincronizada con el botón atrás/adelante.
+  useEffect(() => {
+    const handleHashChange = () => {
+      const nextPage = readPageFromHash();
+
+      if (nextPage) {
+        setPage(nextPage);
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+
+    return () => {
+      window.removeEventListener(
+        'hashchange',
+        handleHashChange,
+      );
+    };
+  }, []);
+
+  // Si el rol no permite la página del enlace, se vuelve al inicio.
+  useEffect(() => {
+    if (!loading && user && allowedPage !== page) {
+      navigateTo(allowedPage);
+      setPage(allowedPage);
+    }
+  }, [allowedPage, loading, page, user]);
+
+  useEffect(() => {
+    document.title = user
+      ? `${PAGE_LABELS[allowedPage]} · GymFlow`
+      : 'Iniciar sesión · GymFlow';
+  }, [allowedPage, user]);
+
+  // Cierra el menú móvil con Escape.
+  useEffect(() => {
+    if (!sidebarOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSidebarOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [sidebarOpen]);
+
+  const handleIntentHandled = useCallback(() => {
+    setMembersIntent(null);
+  }, []);
 
   if (loading) {
     return (
-      <div className="app-loading">
-        <span className="app-spinner" />
+      <div className="app-loading" role="status">
+        <span className="app-spinner" aria-hidden="true" />
         Cargando sesión...
       </div>
     );
@@ -58,11 +126,6 @@ function AppShell() {
   if (!user) {
     return <LoginPage />;
   }
-
-  const allowedPage =
-    (page === 'plans' || page === 'users') && !isAdmin
-      ? 'dashboard'
-      : page;
 
   const handleLogout = async () => {
     try {
@@ -74,83 +137,144 @@ function AppShell() {
     }
   };
 
+  const handleNavigate = (nextPage: Page) => {
+    navigateTo(nextPage);
+    setPage(nextPage);
+    setSidebarOpen(false);
+
+    // Lleva el foco al contenido para lectores de pantalla.
+    window.requestAnimationFrame(() => {
+      document.getElementById('main-content')?.focus();
+    });
+  };
+
+  const handleCreateMember = () => {
+    setMembersIntent({
+      id: Date.now(),
+      mode: 'create',
+    });
+
+    handleNavigate('members');
+  };
+
+  const handleSearchMember = (term: string) => {
+    setMembersIntent({
+      id: Date.now(),
+      mode: 'search',
+      term,
+    });
+
+    handleNavigate('members');
+  };
+
   return (
-    <div className="app">
-      <header className="app-header">
-        <div className="app-brand">
-          <span className="app-logo">GF</span>
-          <h1>GymFlow</h1>
-        </div>
+    <DashboardDataProvider>
+      <div className="app-shell">
+        <a
+          className="skip-link"
+          href="#main-content"
+          onClick={(event) => {
+            event.preventDefault();
 
-        <nav>
-          {navItems
-            .filter((item) => !item.adminOnly || isAdmin)
-            .map((item) => (
-              <button
-                key={item.page}
-                type="button"
-                className={
-                  allowedPage === item.page ? 'active' : undefined
-                }
-                onClick={() => setPage(item.page)}
-              >
-                {item.label}
-              </button>
-            ))}
-        </nav>
+            document
+              .getElementById('main-content')
+              ?.focus();
+          }}
+        >
+          Saltar al contenido
+        </a>
 
-        <div className="app-session">
-          <div className="app-user">
-            <strong>
-              {user.firstName} {user.lastName}
-            </strong>
+        <Sidebar
+          currentPage={allowedPage}
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          onNavigate={handleNavigate}
+          onLogout={handleLogout}
+          loggingOut={loggingOut}
+        />
 
-            <span>
-              {user.role === 'ADMIN'
-                ? 'Administrador'
-                : 'Recepción'}
-            </span>
-          </div>
-
+        {sidebarOpen && (
           <button
             type="button"
-            className="app-logout"
-            onClick={handleLogout}
-            disabled={loggingOut}
-          >
-            {loggingOut ? 'Saliendo...' : 'Salir'}
-          </button>
-        </div>
-      </header>
-
-      <main className="app-content">
-        {allowedPage === 'members' && <MembersPage />}
-
-        {allowedPage === 'plans' && <PlansPage />}
-
-        {allowedPage === 'memberships' && <MembershipsPage />}
-
-        {allowedPage === 'dashboard' && <DashboardPage />}
-
-        {allowedPage === 'payments' && <PaymentsPage />}
-
-        {allowedPage === 'users' && <UsersPage />}
-
-        {allowedPage === 'attendance' && (
-          <Suspense fallback={<p>Cargando asistencia...</p>}>
-            <AttendancePage />
-          </Suspense>
+            className="sidebar-scrim"
+            aria-label="Cerrar menú"
+            onClick={() => setSidebarOpen(false)}
+          />
         )}
-      </main>
-    </div>
+
+        <div className="app-main">
+          <Topbar
+            page={allowedPage}
+            onOpenSidebar={() => setSidebarOpen(true)}
+            onCreateMember={handleCreateMember}
+            onSearchMember={handleSearchMember}
+            onNavigate={handleNavigate}
+          />
+
+          <main
+            className="app-content"
+            id="main-content"
+            tabIndex={-1}
+          >
+            {allowedPage === 'members' && (
+              <MembersPage
+                intent={membersIntent}
+                onIntentHandled={handleIntentHandled}
+              />
+            )}
+
+            {allowedPage === 'plans' && <PlansPage />}
+
+            {allowedPage === 'memberships' && (
+              <MembershipsPage />
+            )}
+
+            {allowedPage === 'dashboard' && (
+              <DashboardPage
+                onNavigate={handleNavigate}
+                onCreateMember={handleCreateMember}
+              />
+            )}
+
+            {allowedPage === 'payments' && <PaymentsPage />}
+
+            {allowedPage === 'users' && <UsersPage />}
+
+            {allowedPage === 'attendance' && (
+              <Suspense
+                fallback={
+                  <LoadingState label="Cargando control de acceso..." />
+                }
+              >
+                <AttendancePage />
+              </Suspense>
+            )}
+
+            {allowedPage === 'events' && (
+              <Suspense
+                fallback={
+                  <LoadingState label="Cargando eventos..." />
+                }
+              >
+                <EventsPage />
+              </Suspense>
+            )}
+          </main>
+        </div>
+      </div>
+    </DashboardDataProvider>
   );
 }
 
 function App() {
   return (
-    <AuthProvider>
-      <AppShell />
-    </AuthProvider>
+    <ToastProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppShell />
+        </AuthProvider>
+      </ThemeProvider>
+    </ToastProvider>
   );
 }
 

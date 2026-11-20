@@ -5,6 +5,12 @@ import type {
 } from '../types/membership';
 import type { Member } from '../types/member';
 import type { DashboardSummary } from '../types/dashboard';
+import type {
+  CreateEventRequest,
+  EventFilters,
+  GymEvent,
+  UpdateEventRequest,
+} from '../types/event';
 import type { CreatePaymentRequest, Payment } from '../types/payment';
 import type {
   Attendance,
@@ -19,6 +25,14 @@ import type {
   ManagedUser,
   UpdateUserRequest,
 } from '../types/auth';
+import type {
+  CreateEventPaymentRequest,
+  CreateReservationRequest,
+  EventPayment,
+  RegisterPaymentResponse,
+  Reservation,
+  ReservationFilters,
+} from '../types/reservation';
 
 const API_URL =
   import.meta.env.VITE_API_URL ??
@@ -421,5 +435,152 @@ export const restoreAttendance = async (
     {
       method: 'POST',
     },
+  );
+};
+
+export const getEvents = async (
+  filters: EventFilters = {},
+): Promise<GymEvent[]> => {
+  const params = new URLSearchParams();
+
+  if (filters.type) {
+    params.set('type', filters.type);
+  }
+
+  if (filters.status) {
+    params.set('status', filters.status);
+  }
+
+  if (filters.search?.trim()) {
+    params.set('search', filters.search.trim());
+  }
+
+  if (filters.from) {
+    params.set('from', filters.from);
+  }
+
+  if (filters.to) {
+    params.set('to', filters.to);
+  }
+
+  const query = params.toString();
+
+  return request<GymEvent[]>(
+    `/events${query ? `?${query}` : ''}`,
+  );
+};
+
+export const createEvent = async (
+  data: CreateEventRequest,
+): Promise<GymEvent> => {
+  return request<GymEvent>('/events', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+
+export const updateEvent = async (
+  id: string,
+  data: UpdateEventRequest,
+): Promise<GymEvent> => {
+  return request<GymEvent>(`/events/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+};
+
+export const publishEvent = async (
+  id: string,
+): Promise<GymEvent> => {
+  return request<GymEvent>(`/events/${id}/publish`, {
+    method: 'PATCH',
+  });
+};
+
+export const cancelEvent = async (
+  id: string,
+): Promise<GymEvent> => {
+  return request<GymEvent>(`/events/${id}/cancel`, {
+    method: 'PATCH',
+  });
+};
+
+export const getReservations = async (
+  filters: ReservationFilters = {},
+): Promise<Reservation[]> => {
+  const params = new URLSearchParams();
+
+  if (filters.eventId) {
+    params.set('eventId', filters.eventId);
+  }
+
+  if (filters.memberId) {
+    params.set('memberId', filters.memberId);
+  }
+
+  if (filters.status) {
+    params.set('status', filters.status);
+  }
+
+  if (filters.paymentStatus) {
+    params.set('paymentStatus', filters.paymentStatus);
+  }
+
+  const query = params.toString();
+
+  return request<Reservation[]>(
+    `/reservations${query ? `?${query}` : ''}`,
+  );
+};
+
+export const getReservation = async (
+  id: string,
+): Promise<Reservation> => {
+  return request<Reservation>(`/reservations/${id}`);
+};
+
+export const createReservation = async (
+  data: CreateReservationRequest,
+): Promise<Reservation> => {
+  return request<Reservation>('/reservations', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+
+export const cancelReservation = async (
+  id: string,
+): Promise<Reservation> => {
+  return request<Reservation>(`/reservations/${id}/cancel`, {
+    method: 'PATCH',
+  });
+};
+
+export const registerEventPayment = async (
+  id: string,
+  data: CreateEventPaymentRequest,
+): Promise<RegisterPaymentResponse> => {
+  return request<RegisterPaymentResponse>(
+    `/reservations/${id}/payments`,
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    },
+  );
+};
+
+export const getReservationPayments = async (
+  id: string,
+): Promise<EventPayment[]> => {
+  return request<EventPayment[]>(
+    `/reservations/${id}/payments`,
+  );
+};
+
+export const getEventReservations = async (
+  eventId: string,
+): Promise<Reservation[]> => {
+  return request<Reservation[]>(
+    `/reservations/event/${eventId}`,
   );
 };

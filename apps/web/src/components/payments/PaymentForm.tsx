@@ -218,9 +218,11 @@ export function PaymentForm({
       onSubmit={handleSubmit}
     >
       <div className="form-group">
-        <label>Miembro</label>
+        <label htmlFor="payment-member">Miembro</label>
 
         <select
+          id="payment-member"
+          name="memberId"
           value={memberId}
           onChange={(event) =>
             handleMemberChange(event.target.value)
@@ -246,9 +248,13 @@ export function PaymentForm({
       </div>
 
       <div className="form-group">
-        <label>Membresía</label>
+        <label htmlFor="payment-membership">
+          Membresía
+        </label>
 
         <select
+          id="payment-membership"
+          name="membershipId"
           value={membershipId}
           onChange={(event) =>
             handleMembershipChange(event.target.value)
@@ -336,10 +342,13 @@ export function PaymentForm({
       )}
 
       <div className="form-group">
-        <label>Monto</label>
+        <label htmlFor="payment-amount">Monto</label>
 
         <input
+          id="payment-amount"
+          name="amount"
           type="number"
+          inputMode="decimal"
           min="0.01"
           max={
             selectedBalance > 0
@@ -356,9 +365,13 @@ export function PaymentForm({
       </div>
 
       <div className="form-group">
-        <label>Método de pago</label>
+        <label htmlFor="payment-method">
+          Método de pago
+        </label>
 
         <select
+          id="payment-method"
+          name="method"
           value={method}
           onChange={(event) =>
             setMethod(
@@ -379,9 +392,13 @@ export function PaymentForm({
       </div>
 
       <div className="form-group">
-        <label>Referencia</label>
+        <label htmlFor="payment-reference">
+          Referencia
+        </label>
 
         <input
+          id="payment-reference"
+          name="reference"
           type="text"
           value={reference}
           onChange={(event) =>
@@ -393,9 +410,11 @@ export function PaymentForm({
       </div>
 
       <div className="form-group">
-        <label>Notas</label>
+        <label htmlFor="payment-notes">Notas</label>
 
         <textarea
+          id="payment-notes"
+          name="notes"
           value={notes}
           onChange={(event) =>
             setNotes(event.target.value)
@@ -407,7 +426,11 @@ export function PaymentForm({
       </div>
 
       {formError && (
-        <div className="error-message full-width">
+        <div
+          id="payment-form-error"
+          className="error-message full-width"
+          role="alert"
+        >
           {formError}
         </div>
       )}
@@ -415,8 +438,11 @@ export function PaymentForm({
       <div className="form-actions">
         <button
           type="submit"
-          className="primary-button"
+          className="button primary"
           disabled={submitting}
+          aria-describedby={
+            formError ? 'payment-form-error' : undefined
+          }
         >
           {submitting
             ? 'Registrando...'

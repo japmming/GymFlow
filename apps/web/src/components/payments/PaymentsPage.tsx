@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '../../auth/AuthProvider';
 import {
@@ -18,11 +18,16 @@ import type {
 
 import { matchesSearch } from '../../utils/search';
 
+import { ActionDialog } from '../ui/ActionDialog';
+import { LoadingState } from '../ui/LoadingState';
+import { SearchField } from '../ui/SearchField';
+import { useToast } from '../ui/ToastProvider';
 import { PaymentForm } from './PaymentForm';
 import { PaymentTable } from './PaymentTable';
 
 export function PaymentsPage() {
   const { isAdmin } = useAuth();
+  const { notify } = useToast();
 
   const [payments, setPayments] = useState<Payment[]>([]);
   const [search, setSearch] = useState('');
@@ -32,62 +37,71 @@ export function PaymentsPage() {
   >([]);
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [reversingId, setReversingId] = useState<
+    string | null
+  >(null);
   const [error, setError] = useState('');
+  const [pendingReverse, setPendingReverse] =
+    useState<Payment | null>(null);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setError('');
+  const loadData = useCallback(
+    async (mode: 'initial' | 'refresh' = 'initial') => {
+      try {
+        if (mode === 'initial') {
+          setLoading(true);
+        } else {
+          setRefreshing(true);
+        }
 
-      const [
-        paymentsData,
-        membersData,
-        membershipsData,
-      ] = await Promise.all([
-        getPayments(),
-        getMembers(),
-        getMemberships(),
-      ]);
+        setError('');
 
-      setPayments(paymentsData);
-      setMembers(membersData);
-      setMemberships(membershipsData);
-    } catch (err) {
-      console.error(err);
+        const [
+          paymentsData,
+          membersData,
+          membershipsData,
+        ] = await Promise.all([
+          getPayments(),
+          getMembers(),
+          getMemberships(),
+        ]);
 
-      setError(
-        'No se pudo cargar la información de pagos.',
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+        setPayments(paymentsData);
+        setMembers(membersData);
+        setMemberships(membershipsData);
+      } catch (err) {
+        console.error(err);
+
+        setError(
+          'No se pudo cargar la información de pagos.',
+        );
+      } finally {
+        if (mode === 'initial') {
+          setLoading(false);
+        } else {
+          setRefreshing(false);
+        }
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
-    loadData();
-  }, []);
+    void loadData('initial');
+  }, [loadData]);
 
   const handleCreatePayment = async (
     data: CreatePaymentRequest,
   ) => {
     try {
       setSubmitting(true);
-      setError('');
 
       await createPayment(data);
 
-      await loadData();
-    } catch (err) {
-      console.error(err);
+      await loadData('refresh');
 
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'No se pudo registrar el pago.',
-      );
-
-      throw err;
+      notify('Pago registrado correctamente.');
     } finally {
       setSubmitting(false);
     }
@@ -95,34 +109,18 @@ export function PaymentsPage() {
 
   const handleReversePayment = async (
     payment: Payment,
+    reason: string,
   ) => {
-    const reason = window.prompt(
-      `Motivo del reverso del pago de S/ ${Number(
-        payment.amount,
-      ).toFixed(2)}:`,
-    );
-
-    if (!reason?.trim()) {
-      return;
-    }
-
     try {
-      setSubmitting(true);
-      setError('');
+      setReversingId(payment.id);
 
-      await reversePayment(payment.id, reason.trim());
+      await reversePayment(payment.id, reason);
 
-      await loadData();
-    } catch (err) {
-      console.error(err);
+      await loadData('refresh');
 
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'No se pudo reversar el pago.',
-      );
+      notify('Pago reversado correctamente.');
     } finally {
-      setSubmitting(false);
+      setReversingId(null);
     }
   };
 
@@ -161,7 +159,7 @@ export function PaymentsPage() {
   if (loading) {
     return (
       <div className="page-container">
-        <p>Cargando pagos...</p>
+        <LoadingState label="Cargando pagos..." />
       </div>
     );
   }
@@ -178,33 +176,32 @@ export function PaymentsPage() {
         </div>
 
         <button
-          className="secondary-button"
-          onClick={loadData}
+          type="button"
+          className="button secondary"
+          onClick={() => {
+            void loadData('refresh');
+          }}
+          disabled={refreshing}
         >
-          Actualizar
+          {refreshing ? 'Actualizando...' : 'Actualizar'}
         </button>
       </div>
 
       {error && (
-        <div className="error-message">
+        <div className="error-message" role="alert">
           {error}
         </div>
       )}
 
       <div className="members-toolbar">
-        <div className="search-box">
-          <span>⌕</span>
+        <SearchField
+          label="Buscar pagos"
+          placeholder="Buscar por socio, DNI, código, plan o referencia..."
+          value={search}
+          onChange={setSearch}
+        />
 
-          <input
-            placeholder="Buscar por socio, DNI, código, plan o referencia..."
-            value={search}
-            onChange={(e) =>
-              setSearch(e.target.value)
-            }
-          />
-        </div>
-
-        <div className="members-count">
+        <div className="members-count" aria-live="polite">
           {filteredPayments.length} de {payments.length}{' '}
           pagos
         </div>
@@ -256,10 +253,45 @@ export function PaymentsPage() {
         <PaymentTable
           payments={filteredPayments}
           canReverse={isAdmin}
-          onReverse={handleReversePayment}
-          reversing={submitting}
+          onReverse={setPendingReverse}
+          reversingId={reversingId}
         />
       </section>
+
+      {pendingReverse && (
+        <ActionDialog
+          title="Reversar pago"
+          description={
+            <>
+              Se reversará el pago de{' '}
+              <strong>
+                S/{' '}
+                {Number(
+                  pendingReverse.amount,
+                ).toFixed(2)}
+              </strong>{' '}
+              de{' '}
+              {pendingReverse.member.firstName}{' '}
+              {pendingReverse.member.lastName}. Indica el motivo
+              para dejar registro.
+            </>
+          }
+          confirmLabel="Reversar pago"
+          cancelLabel="Volver"
+          danger
+          reason={{
+            label: 'Motivo del reverso',
+            placeholder:
+              'Ej. El socio solicitó la devolución del pago',
+            required: true,
+            maxLength: 240,
+          }}
+          onConfirm={(reason) =>
+            handleReversePayment(pendingReverse, reason)
+          }
+          onClose={() => setPendingReverse(null)}
+        />
+      )}
     </div>
   );
 }

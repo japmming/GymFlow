@@ -1,4 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 
 import { useAuth } from '../../auth/AuthProvider';
 import {
@@ -16,11 +21,17 @@ import type {
   Membership,
 } from '../../types/membership';
 import { matchesSearch } from '../../utils/search';
+import { ActionDialog } from '../ui/ActionDialog';
+import { LoadingState } from '../ui/LoadingState';
+import { SearchField } from '../ui/SearchField';
+import { useToast } from '../ui/ToastProvider';
+import { Modal } from '../ui/Modal';
 import { MembershipForm } from './MembershipForm';
 import { MembershipTable } from './MembershipTable';
 
 export function MembershipsPage() {
   const { isAdmin } = useAuth();
+  const { notify } = useToast();
 
   const [memberships, setMemberships] =
     useState<Membership[]>([]);
@@ -45,38 +56,49 @@ export function MembershipsPage() {
   const [cancellingId, setCancellingId] =
     useState<string | null>(null);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setError('');
+  const [pendingCancel, setPendingCancel] =
+    useState<Membership | null>(null);
 
-      const [
-        membershipsData,
-        membersData,
-        plansData,
-      ] = await Promise.all([
-        getMemberships(),
-        getMembers(),
-        getPlans(),
-      ]);
+  const loadData = useCallback(
+    async (mode: 'initial' | 'refresh' = 'initial') => {
+      try {
+        if (mode === 'initial') {
+          setLoading(true);
+        }
 
-      setMemberships(membershipsData);
-      setMembers(membersData);
-      setPlans(plansData);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'No se pudieron cargar los datos.',
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+        setError('');
+
+        const [
+          membershipsData,
+          membersData,
+          plansData,
+        ] = await Promise.all([
+          getMemberships(),
+          getMembers(),
+          getPlans(),
+        ]);
+
+        setMemberships(membershipsData);
+        setMembers(membersData);
+        setPlans(plansData);
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'No se pudieron cargar los datos.',
+        );
+      } finally {
+        if (mode === 'initial') {
+          setLoading(false);
+        }
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
-    loadData();
-  }, []);
+    void loadData('initial');
+  }, [loadData]);
 
   const filteredMemberships = useMemo(
     () =>
@@ -103,35 +125,24 @@ export function MembershipsPage() {
 
     setShowForm(false);
 
-    await loadData();
+    await loadData('refresh');
+
+    notify('Membresía registrada correctamente.');
   };
 
   const handleCancel = async (
     membership: Membership,
+    reason: string,
   ) => {
-    const reason = window.prompt(
-      `Motivo de la cancelación de la membresía de ${membership.member.firstName} ${membership.member.lastName}:`,
-    );
-
-    if (!reason?.trim()) {
-      return;
-    }
-
     try {
       setCancellingId(membership.id);
-      setError('');
 
-      await cancelMembership(
-        membership.id,
-        reason.trim(),
-      );
+      await cancelMembership(membership.id, reason);
 
-      await loadData();
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'No se pudo cancelar la membresía.',
+      await loadData('refresh');
+
+      notify(
+        `La membresía de ${membership.member.firstName} ${membership.member.lastName} fue cancelada.`,
       );
     } finally {
       setCancellingId(null);
@@ -140,8 +151,8 @@ export function MembershipsPage() {
 
   if (loading) {
     return (
-      <div>
-        Cargando membresías...
+      <div className="page-container">
+        <LoadingState label="Cargando membresías..." />
       </div>
     );
   }
@@ -160,6 +171,7 @@ export function MembershipsPage() {
 
         <button
           type="button"
+          className="button primary"
           onClick={() =>
             setShowForm(true)
           }
@@ -169,55 +181,77 @@ export function MembershipsPage() {
       </div>
 
       {error && (
-        <div className="error-message">
+        <div className="error-message" role="alert">
           {error}
         </div>
       )}
 
       <div className="members-toolbar">
-        <div className="search-box">
-          <span>⌕</span>
+        <SearchField
+          label="Buscar membresías"
+          placeholder="Buscar por socio, DNI, código o plan..."
+          value={search}
+          onChange={setSearch}
+        />
 
-          <input
-            placeholder="Buscar por socio, DNI, código o plan..."
-            value={search}
-            onChange={(e) =>
-              setSearch(e.target.value)
-            }
-          />
-        </div>
-
-        <div className="members-count">
+        <div className="members-count" aria-live="polite">
           {filteredMemberships.length} de{' '}
           {memberships.length} membresías
         </div>
       </div>
 
       {showForm && (
-        <div className="modal-backdrop">
-          <div className="modal">
-            <h2>
-              Nueva membresía
-            </h2>
-
-            <MembershipForm
-              members={members}
-              plans={plans}
-              onSubmit={handleCreate}
-              onCancel={() =>
-                setShowForm(false)
-              }
-            />
-          </div>
-        </div>
+        <Modal
+          title="Nueva membresía"
+          description="Asocia un plan a un miembro activo."
+          onClose={() => setShowForm(false)}
+        >
+          <MembershipForm
+            members={members}
+            plans={plans}
+            onSubmit={handleCreate}
+            onCancel={() =>
+              setShowForm(false)
+            }
+          />
+        </Modal>
       )}
 
       <MembershipTable
         memberships={filteredMemberships}
         canCancel={isAdmin}
-        onCancel={handleCancel}
+        onCancel={setPendingCancel}
         cancellingId={cancellingId}
       />
+
+      {pendingCancel && (
+        <ActionDialog
+          title="Cancelar membresía"
+          description={
+            <>
+              <strong>
+                {pendingCancel.member.firstName}{' '}
+                {pendingCancel.member.lastName}
+              </strong>{' '}
+              dejará de tener una membresía vigente. Indica el
+              motivo para dejar registro.
+            </>
+          }
+          confirmLabel="Cancelar membresía"
+          cancelLabel="Volver"
+          danger
+          reason={{
+            label: 'Motivo de la cancelación',
+            placeholder: 'Ej. El socio solicitó la cancelación',
+            required: true,
+            maxLength: 240,
+          }}
+          onConfirm={(reason) =>
+            handleCancel(pendingCancel, reason)
+          }
+          onClose={() => setPendingCancel(null)}
+        />
+      )}
     </section>
   );
 }

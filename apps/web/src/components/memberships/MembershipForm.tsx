@@ -86,6 +86,7 @@ export function MembershipForm({
 
         <select
           id="membership-member"
+          name="memberId"
           value={memberId}
           onChange={(e) =>
             setMemberId(e.target.value)
@@ -122,6 +123,7 @@ export function MembershipForm({
 
         <select
           id="membership-plan"
+          name="planId"
           value={planId}
           onChange={(e) =>
             setPlanId(e.target.value)
@@ -151,6 +153,7 @@ export function MembershipForm({
 
         <input
           id="membership-start-date"
+          name="startDate"
           type="date"
           min={todayDateKey()}
           value={startDate}
@@ -161,7 +164,11 @@ export function MembershipForm({
       </div>
 
       {error && (
-        <div className="error-message">
+        <div
+          id="membership-form-error"
+          className="error-message"
+          role="alert"
+        >
           {error}
         </div>
       )}
@@ -169,6 +176,7 @@ export function MembershipForm({
       <div className="form-actions">
         <button
           type="button"
+          className="button secondary"
           onClick={onCancel}
           disabled={loading}
         >
@@ -177,7 +185,11 @@ export function MembershipForm({
 
         <button
           type="submit"
+          className="button primary"
           disabled={loading}
+          aria-describedby={
+            error ? 'membership-form-error' : undefined
+          }
         >
           {loading
             ? 'Creando...'

@@ -1,105 +1,128 @@
-import { useEffect, useState } from 'react';
-
-import { getDashboard } from '../../services/api';
-import type { DashboardSummary } from '../../types/dashboard';
 import {
-  daysBetweenDateKeys,
-  formatDateOnly,
-  toDateKey,
+  CalendarClock,
+  RefreshCw,
+  ScanLine,
+  Users,
+  Wallet,
+} from 'lucide-react';
+
+import { useAuth } from '../../auth/AuthProvider';
+import type { Page } from '../../types/navigation';
+import {
+  toLocalDateKey,
   todayDateKey,
 } from '../../utils/date';
+import { EmptyState } from '../ui/EmptyState';
+import { CheckInList } from './CheckInList';
+import { useDashboardData } from './DashboardDataProvider';
+import { DashboardSkeleton } from './DashboardSkeleton';
+import { KpiCard } from './KpiCard';
+import { MembershipDonut } from './MembershipDonut';
+import { RevenueChart } from './RevenueChart';
+import { UpcomingClasses } from './UpcomingClasses';
 
-function formatDate(date: string) {
-  return new Intl.DateTimeFormat('es-PE', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(new Date(date));
+const CURRENCY_FORMATTER = new Intl.NumberFormat('es-PE', {
+  style: 'currency',
+  currency: 'PEN',
+  maximumFractionDigits: 0,
+});
+
+const DATE_FORMATTER = new Intl.DateTimeFormat('es-PE', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+});
+
+/**
+ * Capacidad operativa referencial para mostrar el aforo del día.
+ * Se reemplazará cuando el API exponga la configuración del gimnasio.
+ */
+const DAILY_CAPACITY = 40;
+
+function formatMoney(value: number) {
+  return CURRENCY_FORMATTER.format(value);
 }
 
-function formatTime(date: string) {
-  return new Intl.DateTimeFormat('es-PE', {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(date));
+function capitalize(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-function formatShortDate(dateKey: string) {
-  const [year, month, day] = dateKey
-    .split('-')
-    .map(Number);
-
-  return new Intl.DateTimeFormat('es-PE', {
-    day: '2-digit',
-    month: 'short',
-  }).format(new Date(year, month - 1, day));
+function getMonthKey(value: string) {
+  return toLocalDateKey(value).slice(0, 7);
 }
 
-function formatSource(source?: string | null) {
-  if (!source) {
-    return '—';
-  }
-
-  if (source === 'MEMBER_CODE') {
-    return 'Código';
-  }
-
-  return source;
-}
-
-function getDaysRemaining(date: string) {
-  return daysBetweenDateKeys(
-    todayDateKey(),
-    toDateKey(date),
+function getPreviousMonthKey() {
+  const now = new Date();
+  const previous = new Date(
+    now.getFullYear(),
+    now.getMonth() - 1,
+    1,
   );
+
+  return `${previous.getFullYear()}-${String(
+    previous.getMonth() + 1,
+  ).padStart(2, '0')}`;
 }
 
-export function DashboardPage() {
-  const [data, setData] =
-    useState<DashboardSummary | null>(null);
+function getDelta(current: number, previous: number) {
+  if (previous <= 0) {
+    return null;
+  }
 
-  const [loading, setLoading] =
-    useState(true);
+  return ((current - previous) / previous) * 100;
+}
 
-  const [error, setError] =
-    useState('');
+function getGreeting() {
+  const hour = new Date().getHours();
 
-  const loadDashboard = async () => {
-    try {
-      setLoading(true);
-      setError('');
+  if (hour < 12) {
+    return 'Buenos días';
+  }
 
-      const result = await getDashboard();
+  if (hour < 19) {
+    return 'Buenas tardes';
+  }
 
-      setData(result);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'No se pudo cargar el dashboard.',
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+  return 'Buenas noches';
+}
 
-  useEffect(() => {
-    loadDashboard();
-  }, []);
+interface DashboardPageProps {
+  onNavigate: (page: Page) => void;
+  onCreateMember: () => void;
+}
+
+export function DashboardPage({
+  onNavigate,
+  onCreateMember,
+}: DashboardPageProps) {
+  const { user } = useAuth();
+  const { data, loading, refreshing, error, refresh } =
+    useDashboardData();
 
   if (loading) {
-    return (
-      <div>
-        Cargando dashboard...
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
-  if (error) {
+  if (error && !data) {
     return (
-      <div className="error-message">
-        {error}
-      </div>
+      <section className="dashboard-page" role="alert">
+        <EmptyState
+          icon="⚠"
+          title="No pudimos cargar el panel"
+          description={error}
+          action={
+            <button
+              type="button"
+              className="button primary"
+              onClick={() => {
+                void refresh('initial');
+              }}
+            >
+              Reintentar
+            </button>
+          }
+        />
+      </section>
     );
   }
 
@@ -107,338 +130,213 @@ export function DashboardPage() {
     return null;
   }
 
-  const maxDaily = Math.max(
-    ...data.attendance.daily.map(
-      (day) => day.count,
-    ),
-    1,
+  const { summary, payments, memberships } = data;
+
+  const today = todayDateKey();
+  const currentMonthKey = today.slice(0, 7);
+  const previousMonthKey = getPreviousMonthKey();
+
+  const completedPayments = payments.filter(
+    (payment) => payment.status === 'COMPLETED',
   );
 
+  const monthPayments = completedPayments.filter(
+    (payment) =>
+      getMonthKey(payment.paymentDate) === currentMonthKey,
+  );
+
+  const monthRevenue = monthPayments.reduce(
+    (total, payment) =>
+      total + Number(payment.amount ?? 0),
+    0,
+  );
+
+  const previousRevenue = completedPayments
+    .filter(
+      (payment) =>
+        getMonthKey(payment.paymentDate) ===
+        previousMonthKey,
+    )
+    .reduce(
+      (total, payment) =>
+        total + Number(payment.amount ?? 0),
+      0,
+    );
+
+  const newMembersThisMonth = data.members.filter(
+    (member) =>
+      getMonthKey(member.createdAt) === currentMonthKey,
+  ).length;
+
+  const newMembersPreviousMonth = data.members.filter(
+    (member) =>
+      getMonthKey(member.createdAt) === previousMonthKey,
+  ).length;
+
+  const attendanceRate = Math.min(
+    Math.round(
+      (summary.attendance.today / DAILY_CAPACITY) * 100,
+    ),
+    100,
+  );
+
+  const firstName = user?.firstName ?? 'equipo';
+
   return (
-    <section>
-      <div className="page-header">
+    <section className="dashboard-page">
+      <div className="dashboard-heading">
         <div>
-          <h1>Dashboard</h1>
+          <span className="page-eyebrow">
+            Resumen general
+          </span>
+
+          <h1>
+            {getGreeting()}, {firstName}
+          </h1>
 
           <p>
-            Resumen general del gimnasio.
+            {capitalize(DATE_FORMATTER.format(new Date()))}
+            {' · '}
+            Así va el gimnasio hoy.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={loadDashboard}
-        >
-          Actualizar
-        </button>
-      </div>
+        <div className="dashboard-heading-actions">
+          <button
+            type="button"
+            className="button secondary"
+            onClick={() => {
+              void refresh();
+            }}
+            disabled={refreshing}
+          >
+            <RefreshCw
+              size={16}
+              className={refreshing ? 'is-spinning' : undefined}
+              aria-hidden="true"
+            />
+            {refreshing ? 'Actualizando...' : 'Actualizar'}
+          </button>
 
-      <div className="dashboard-cards">
-        <div className="dashboard-card">
-          <span>Miembros</span>
-          <strong>
-            {data.members.total}
-          </strong>
-
-          <small>
-            {data.members.active} activos
-          </small>
-        </div>
-
-        <div className="dashboard-card">
-          <span>Membresías activas</span>
-
-          <strong>
-            {data.memberships.active}
-          </strong>
-
-          <small>
-            Vigentes actualmente
-          </small>
-        </div>
-
-        <div className="dashboard-card">
-          <span>Vencen pronto</span>
-
-          <strong>
-            {data.memberships.expiringSoon}
-          </strong>
-
-          <small>
-            Próximos 7 días
-          </small>
-        </div>
-
-        <div className="dashboard-card">
-          <span>Socios vencidos</span>
-
-          <strong>
-            {data.memberships.expired}
-          </strong>
-
-          <small>
-            Sin vigencia actual
-          </small>
+          <button
+            type="button"
+            className="button primary"
+            onClick={onCreateMember}
+          >
+            <Users size={16} aria-hidden="true" />
+            Nuevo socio
+          </button>
         </div>
       </div>
 
-      <h2 className="dashboard-section-title">
-        Asistencias
-      </h2>
-
-      <div className="dashboard-cards">
-        <div className="dashboard-card">
-          <span>Ingresos hoy</span>
-
-          <strong>
-            {data.attendance.today}
-          </strong>
-
-          <small>
-            {data.attendance.uniqueMembersToday}{' '}
-            socios únicos
-          </small>
+      {error && (
+        <div className="alert error" role="alert">
+          {error}
         </div>
+      )}
 
-        <div className="dashboard-card">
-          <span>Últimos 7 días</span>
+      <div className="kpi-grid">
+        <KpiCard
+          label="Socios activos"
+          value={summary.members.active}
+          icon={Users}
+          tone="brand"
+          delta={getDelta(
+            newMembersThisMonth,
+            newMembersPreviousMonth,
+          )}
+          deltaLabel="nuevos vs. mes anterior"
+          footer={
+            <>
+              <span>
+                {summary.members.total} socios en total
+              </span>
+              <span>{summary.members.inactive} inactivos</span>
+            </>
+          }
+        />
 
-          <strong>
-            {data.attendance.last7Days}
-          </strong>
+        <KpiCard
+          label="Ingresos del mes"
+          value={formatMoney(monthRevenue)}
+          icon={Wallet}
+          tone="success"
+          delta={getDelta(monthRevenue, previousRevenue)}
+          deltaLabel="vs. mes anterior"
+          footer={
+            <>
+              <span>
+                {monthPayments.length}{' '}
+                {monthPayments.length === 1
+                  ? 'pago registrado'
+                  : 'pagos registrados'}
+              </span>
+              <span>
+                {formatMoney(previousRevenue)} el mes pasado
+              </span>
+            </>
+          }
+        />
 
-          <small>
-            Ingresos registrados
-          </small>
-        </div>
-
-        <div className="dashboard-card">
-          <span>Este mes</span>
-
-          <strong>
-            {data.attendance.month}
-          </strong>
-
-          <small>
-            Mes actual
-          </small>
-        </div>
-
-        <div className="dashboard-card">
-          <span>Socios únicos hoy</span>
-
-          <strong>
-            {data.attendance.uniqueMembersToday}
-          </strong>
-
-          <small>
-            Con al menos un ingreso
-          </small>
-        </div>
-      </div>
-
-      <div className="dashboard-grid">
-        <div className="dashboard-panel">
-          <div className="panel-header">
-            <h2>
-              Asistencias últimos 7 días
-            </h2>
-          </div>
-
-          <div className="attendance-chart">
-            {data.attendance.daily.map((day) => (
+        <KpiCard
+          label="Asistencias de hoy"
+          value={summary.attendance.today}
+          icon={ScanLine}
+          tone="info"
+          deltaLabel={`${summary.attendance.uniqueMembersToday} socios únicos`}
+          footer={
+            <div className="kpi-progress">
               <div
-                className="attendance-chart-item"
-                key={day.date}
+                className="kpi-progress-track"
+                role="img"
+                aria-label={`Aforo de hoy: ${summary.attendance.today} de ${DAILY_CAPACITY} cupos`}
               >
-                <span className="attendance-chart-value">
-                  {day.count}
-                </span>
-
-                <div className="attendance-chart-track">
-                  <div
-                    className="attendance-chart-bar"
-                    style={{
-                      height: `${
-                        (day.count / maxDaily) * 100
-                      }%`,
-                    }}
-                  />
-                </div>
-
-                <span className="attendance-chart-label">
-                  {formatShortDate(day.date)}
-                </span>
+                <div
+                  className="kpi-progress-fill"
+                  style={{ width: `${attendanceRate}%` }}
+                />
               </div>
-            ))}
-          </div>
-        </div>
 
-        <div className="dashboard-panel">
-          <div className="panel-header">
-            <h2>Últimos ingresos</h2>
-          </div>
-
-          {data.attendance.recent.length === 0 ? (
-            <div className="empty-state">
-              No hay asistencias registradas.
+              <span>
+                {summary.attendance.today}/{DAILY_CAPACITY}{' '}
+                cupos
+              </span>
             </div>
-          ) : (
-            <div className="dashboard-list">
-              {data.attendance.recent.map(
-                (attendance) => (
-                  <div
-                    className="dashboard-list-item"
-                    key={attendance.id}
-                  >
-                    <div>
-                      <strong>
-                        {attendance.member.firstName}{' '}
-                        {attendance.member.lastName}
-                      </strong>
+          }
+        />
 
-                      <small>
-                        {attendance.member
-                          .memberCode ?? '—'}{' '}
-                        ·{' '}
-                        {formatDate(
-                          attendance.checkedInAt,
-                        )}{' '}
-                        {formatTime(
-                          attendance.checkedInAt,
-                        )}
-                      </small>
-                    </div>
-
-                    <span className="attendance-source">
-                      {formatSource(
-                        attendance.source,
-                      )}
-                    </span>
-                  </div>
-                ),
-              )}
-            </div>
-          )}
-        </div>
+        <KpiCard
+          label="Membresías por vencer"
+          value={summary.memberships.expiringSoon}
+          icon={CalendarClock}
+          tone="warning"
+          deltaLabel="próximos 7 días"
+          footer={
+            <button
+              type="button"
+              className="kpi-link"
+              onClick={() => onNavigate('memberships')}
+            >
+              Gestionar membresías
+              <span aria-hidden="true">→</span>
+            </button>
+          }
+        />
       </div>
 
-      <div className="dashboard-grid">
-        <div className="dashboard-panel">
-          <div className="panel-header">
-            <h2>
-              Membresías por vencer
-            </h2>
-          </div>
+      <div className="dashboard-analytics">
+        <RevenueChart payments={payments} />
 
-          {data.expiringMemberships.length ===
-          0 ? (
-            <div className="empty-state">
-              No hay membresías próximas a
-              vencer.
-            </div>
-          ) : (
-            <div className="dashboard-list">
-              {data.expiringMemberships.map(
-                (membership) => {
-                  const days =
-                    getDaysRemaining(
-                      membership.endDate,
-                    );
+        <MembershipDonut memberships={memberships} />
+      </div>
 
-                  return (
-                    <div
-                      className="dashboard-list-item"
-                      key={membership.id}
-                    >
-                      <div>
-                        <strong>
-                          {
-                            membership.member
-                              .firstName
-                          }{' '}
-                          {
-                            membership.member
-                              .lastName
-                          }
-                        </strong>
+      <div className="dashboard-operations">
+        <CheckInList
+          attendances={summary.attendance.recent}
+          onViewAll={() => onNavigate('attendance')}
+        />
 
-                        <small>
-                          {membership.plan.name}
-                        </small>
-                      </div>
-
-                      <div>
-                        <strong>
-                          {days}{' '}
-                          {days === 1 ? 'día' : 'días'}
-                        </strong>
-
-                        <small>
-                          Vence{' '}
-                          {formatDateOnly(
-                            membership.endDate,
-                          )}
-                        </small>
-                      </div>
-                    </div>
-                  );
-                },
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="dashboard-panel">
-          <div className="panel-header">
-            <h2>
-              Últimos miembros
-            </h2>
-          </div>
-
-          {data.recentMembers.length ===
-          0 ? (
-            <div className="empty-state">
-              No hay miembros registrados.
-            </div>
-          ) : (
-            <div className="dashboard-list">
-              {data.recentMembers.map(
-                (member) => (
-                  <div
-                    className="dashboard-list-item"
-                    key={member.id}
-                  >
-                    <div>
-                      <strong>
-                        {member.firstName}{' '}
-                        {member.lastName}
-                      </strong>
-
-                      <small>
-                        {member.documentNumber ??
-                          'Sin documento'}
-                      </small>
-                    </div>
-
-                    <span
-                      className={`status-badge ${
-                        member.status === 'ACTIVE'
-                          ? 'status-active'
-                          : 'status-inactive'
-                      }`}
-                    >
-                      {member.status ===
-                      'ACTIVE'
-                        ? 'Activo'
-                        : 'Inactivo'}
-                    </span>
-                  </div>
-                ),
-              )}
-            </div>
-          )}
-        </div>
+        <UpcomingClasses onNavigate={onNavigate} />
       </div>
     </section>
   );

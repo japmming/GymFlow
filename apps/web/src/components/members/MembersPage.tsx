@@ -8,16 +8,36 @@ import type {
   Member,
   MembersResponse,
 } from '../../types/member';
+import type { MembersIntent } from '../../types/navigation';
+
+import { ActionDialog } from '../ui/ActionDialog';
+import { LoadingState } from '../ui/LoadingState';
+import { Pagination } from '../ui/Pagination';
+import { SearchField } from '../ui/SearchField';
+import { useToast } from '../ui/ToastProvider';
 
 import { MemberForm } from './MemberForm';
 import { MemberTable } from './MemberTable';
 
-export function MembersPage() {
+type MemberAction = 'deactivate' | 'reactivate';
+
+interface MembersPageProps {
+  intent?: MembersIntent | null;
+  onIntentHandled?: () => void;
+}
+
+export function MembersPage({
+  intent,
+  onIntentHandled,
+}: MembersPageProps = {}) {
   const { isAdmin } = useAuth();
+  const { notify } = useToast();
 
   const [members, setMembers] = useState<Member[]>(
     [],
   );
+
+  const [searchInput, setSearchInput] = useState('');
 
   const [search, setSearch] = useState('');
 
@@ -42,42 +62,87 @@ export function MembersPage() {
   const [editingMember, setEditingMember] =
     useState<Member | null>(null);
 
-  const loadMembers = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  const [pendingAction, setPendingAction] = useState<{
+    member: Member;
+    action: MemberAction;
+  } | null>(null);
 
-      const params = new URLSearchParams();
+  const loadMembers = useCallback(
+    async (mode: 'initial' | 'refresh' = 'initial') => {
+      try {
+        if (mode === 'initial') {
+          setLoading(true);
+        }
 
-      if (search.trim()) {
-        params.set('search', search.trim());
-      }
+        setError(null);
 
-      params.set('page', String(page));
-      params.set('limit', '10');
+        const params = new URLSearchParams();
 
-      const response =
-        await api.get<MembersResponse>(
-          `/members?${params.toString()}`,
+        if (search.trim()) {
+          params.set('search', search.trim());
+        }
+
+        params.set('page', String(page));
+        params.set('limit', '10');
+
+        const response =
+          await api.get<MembersResponse>(
+            `/members?${params.toString()}`,
+          );
+
+        setMembers(response.data);
+        setTotal(response.meta.total);
+        setTotalPages(response.meta.totalPages);
+      } catch (error) {
+        setError(
+          error instanceof Error
+            ? error.message
+            : 'No se pudieron cargar los socios.',
         );
-
-      setMembers(response.data);
-      setTotal(response.meta.total);
-      setTotalPages(response.meta.totalPages);
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : 'No se pudieron cargar los socios.',
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [search, page]);
+      } finally {
+        if (mode === 'initial') {
+          setLoading(false);
+        }
+      }
+    },
+    [search, page],
+  );
 
   useEffect(() => {
-    loadMembers();
+    void loadMembers('initial');
   }, [loadMembers]);
+
+  // Espera a que el usuario deje de escribir antes de buscar.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [searchInput]);
+
+  // Aplica las acciones que llegan desde la barra superior.
+  useEffect(() => {
+    if (!intent) {
+      return;
+    }
+
+    if (intent.mode === 'create') {
+      setEditingMember(null);
+      setShowForm(true);
+    } else if (intent.term) {
+      const term = intent.term.trim();
+
+      setSearchInput(term);
+      setSearch(term);
+      setPage(1);
+    }
+
+    onIntentHandled?.();
+  }, [intent, onIntentHandled]);
 
   function handleNewMember() {
     setEditingMember(null);
@@ -108,7 +173,13 @@ export function MembersPage() {
       setShowForm(false);
       setEditingMember(null);
 
-      await loadMembers();
+      await loadMembers('refresh');
+
+      notify(
+        editingMember
+          ? 'Socio actualizado correctamente.'
+          : 'Socio registrado correctamente.',
+      );
     } catch (error) {
       setError(
         error instanceof Error
@@ -123,64 +194,33 @@ export function MembersPage() {
   async function handleDeactivate(
     member: Member,
   ) {
-    const confirmed = window.confirm(
-      `¿Deseas desactivar a ${member.firstName} ${member.lastName}?`,
+    await api.delete(`/members/${member.id}`);
+
+    await loadMembers();
+
+    notify(
+      `${member.firstName} ${member.lastName} fue desactivado.`,
     );
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      setError(null);
-
-      await api.delete(
-        `/members/${member.id}`,
-      );
-
-      await loadMembers();
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : 'No se pudo desactivar el socio.',
-      );
-    }
   }
 
   function handleSearch(value: string) {
-    setSearch(value);
-    setPage(1);
+    setSearchInput(value);
   }
 
   async function handleReactivate(
     member: Member,
   ) {
-    const confirmed = window.confirm(
-      `¿Deseas reactivar a ${member.firstName} ${member.lastName}?`,
+    await reactivateMember(member.id);
+
+    await loadMembers();
+
+    notify(
+      `${member.firstName} ${member.lastName} fue reactivado.`,
     );
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      setError(null);
-
-      await reactivateMember(member.id);
-
-      await loadMembers();
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : 'No se pudo reactivar el socio.',
-      );
-    }
   }
 
   return (
-    <section className="members-page">
+    <section className="page-container">
       <div className="page-header">
         <div>
           <span className="page-eyebrow">
@@ -196,78 +236,62 @@ export function MembersPage() {
         </div>
 
         <button
+          type="button"
           className="button primary"
           onClick={handleNewMember}
         >
-          + Nuevo socio
+          <span aria-hidden="true">+</span> Nuevo socio
         </button>
       </div>
 
       <div className="members-toolbar">
-        <div className="search-box">
-          <span>⌕</span>
+        <SearchField
+          label="Buscar socios"
+          placeholder="Buscar por nombre, apellido, DNI o código..."
+          value={searchInput}
+          onChange={handleSearch}
+        />
 
-          <input
-            placeholder="Buscar por nombre, apellido, DNI o código..."
-            value={search}
-            onChange={(e) =>
-              handleSearch(e.target.value)
-            }
-          />
-        </div>
-
-        <div className="members-count">
-          {total} socios
+        <div className="members-count" aria-live="polite">
+          {total} {total === 1 ? 'socio' : 'socios'}
         </div>
       </div>
 
       {error && (
-        <div className="alert error">
+        <div className="alert error" role="alert">
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="loading-state">
-          Cargando socios...
-        </div>
+        <LoadingState label="Cargando socios..." />
       ) : (
         <>
           <MemberTable
             members={members}
             canManage={isAdmin}
             onEdit={handleEdit}
-            onDeactivate={handleDeactivate}
-            onReactivate={handleReactivate}
+            onDeactivate={(member) =>
+              setPendingAction({
+                member,
+                action: 'deactivate',
+              })
+            }
+            onReactivate={(member) =>
+              setPendingAction({
+                member,
+                action: 'reactivate',
+              })
+            }
           />
 
-          {totalPages > 1 && (
-            <div className="pagination">
-              <button
-                className="button secondary"
-                disabled={page <= 1}
-                onClick={() =>
-                  setPage((current) => current - 1)
-                }
-              >
-                Anterior
-              </button>
-
-              <span>
-                Página {page} de {totalPages}
-              </span>
-
-              <button
-                className="button secondary"
-                disabled={page >= totalPages}
-                onClick={() =>
-                  setPage((current) => current + 1)
-                }
-              >
-                Siguiente
-              </button>
-            </div>
-          )}
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalItems={total}
+            pageSize={10}
+            onPageChange={setPage}
+          />
         </>
       )}
 
@@ -275,11 +299,45 @@ export function MembersPage() {
         <MemberForm
           member={editingMember}
           loading={saving}
+          error={error}
           onSubmit={handleSave}
           onCancel={() => {
             setShowForm(false);
             setEditingMember(null);
           }}
+        />
+      )}
+
+      {pendingAction && (
+        <ActionDialog
+          title={
+            pendingAction.action === 'deactivate'
+              ? 'Desactivar socio'
+              : 'Reactivar socio'
+          }
+          description={
+            <>
+              <strong>
+                {pendingAction.member.firstName}{' '}
+                {pendingAction.member.lastName}
+              </strong>
+              {pendingAction.action === 'deactivate'
+                ? ' dejará de poder registrar asistencias hasta que se reactive.'
+                : ' volverá a estar disponible para registrar asistencias.'}
+            </>
+          }
+          confirmLabel={
+            pendingAction.action === 'deactivate'
+              ? 'Desactivar'
+              : 'Reactivar'
+          }
+          danger={pendingAction.action === 'deactivate'}
+          onConfirm={() =>
+            pendingAction.action === 'deactivate'
+              ? handleDeactivate(pendingAction.member)
+              : handleReactivate(pendingAction.member)
+          }
+          onClose={() => setPendingAction(null)}
         />
       )}
     </section>

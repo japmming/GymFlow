@@ -101,13 +101,23 @@ export function UserForm({
 
   return (
     <form className="member-form" onSubmit={handleSubmit}>
-      {error && <div className="alert error">{error}</div>}
+      {error && (
+        <div
+          id="user-form-error"
+          className="alert error"
+          role="alert"
+        >
+          {error}
+        </div>
+      )}
 
       <div className="form-grid">
         <label className="form-full">
           Correo electrónico
           <input
+            name="email"
             type="email"
+            autoComplete="email"
             required
             disabled={editing}
             value={email}
@@ -119,7 +129,9 @@ export function UserForm({
         <label>
           Nombre
           <input
+            name="firstName"
             type="text"
+            autoComplete="given-name"
             required
             value={firstName}
             onChange={(event) => setFirstName(event.target.value)}
@@ -129,7 +141,9 @@ export function UserForm({
         <label>
           Apellido
           <input
+            name="lastName"
             type="text"
+            autoComplete="family-name"
             required
             value={lastName}
             onChange={(event) => setLastName(event.target.value)}
@@ -139,6 +153,7 @@ export function UserForm({
         <label>
           Rol
           <select
+            name="role"
             value={role}
             disabled={isSelf}
             onChange={(event) =>
@@ -153,6 +168,7 @@ export function UserForm({
         <label>
           {editing ? 'Nueva contraseña' : 'Contraseña'}
           <input
+            name="password"
             type="password"
             required={!editing}
             minLength={password ? 8 : undefined}
@@ -170,6 +186,7 @@ export function UserForm({
         {editing && (
           <label className="form-full checkbox-field">
             <input
+              name="active"
               type="checkbox"
               checked={active}
               disabled={isSelf}
@@ -197,6 +214,9 @@ export function UserForm({
           type="submit"
           className="button primary"
           disabled={loading}
+          aria-describedby={
+            error ? 'user-form-error' : undefined
+          }
         >
           {loading
             ? 'Guardando...'

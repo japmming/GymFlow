@@ -1,3 +1,4 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsInt,
@@ -9,33 +10,56 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
 
 export class CreatePlanDto {
+  @ApiProperty({
+    description: 'Nombre comercial del plan.',
+    minLength: 2,
+    maxLength: 100,
+    example: 'Plan Mensual',
+  })
   @IsString()
   @Length(2, 100)
-  @ApiProperty()
   name!: string;
 
+  @ApiPropertyOptional({
+    description: 'Descripción del plan.',
+    maxLength: 255,
+    example: 'Acceso completo por 30 días',
+    nullable: true,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(255)
-  @ApiProperty()
   description?: string | null;
 
+  @ApiProperty({
+    description: 'Duración del plan en días.',
+    minimum: 1,
+    maximum: 3650,
+    example: 30,
+  })
   @IsInt()
   @Min(1)
   @Max(3650)
-  @ApiProperty()
   durationDays!: number;
 
+  @ApiProperty({
+    description: 'Precio del plan.',
+    minimum: 0,
+    example: 49.9,
+  })
   @IsNumber()
   @Min(0)
-  @ApiProperty()
   price!: number;
 
+  @ApiPropertyOptional({
+    description:
+      'Indica si el plan queda disponible al crearlo. Por defecto es true.',
+    default: true,
+    example: true,
+  })
   @IsOptional()
   @IsBoolean()
-  @ApiProperty()
   active?: boolean;
 }

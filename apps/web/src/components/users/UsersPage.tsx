@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '../../auth/AuthProvider';
 import {
@@ -13,6 +13,12 @@ import type {
 } from '../../types/auth';
 import { matchesSearch } from '../../utils/search';
 
+import { ActionDialog } from '../ui/ActionDialog';
+import { EmptyState } from '../ui/EmptyState';
+import { LoadingState } from '../ui/LoadingState';
+import { SearchField } from '../ui/SearchField';
+import { useToast } from '../ui/ToastProvider';
+import { Modal } from '../ui/Modal';
 import { UserForm, type UserFormValues } from './UserForm';
 
 const roleLabels: Record<string, string> = {
@@ -20,22 +26,28 @@ const roleLabels: Record<string, string> = {
   RECEPTION: 'Recepción',
 };
 
-function formatLastAccess(value: string | null): string {
-  if (!value) {
-    return 'Nunca';
-  }
-
-  return new Intl.DateTimeFormat('es-PE', {
+const LAST_ACCESS_FORMATTER = new Intl.DateTimeFormat(
+  'es-PE',
+  {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(value));
+  },
+);
+
+function formatLastAccess(value: string | null): string {
+  if (!value) {
+    return 'Nunca';
+  }
+
+  return LAST_ACCESS_FORMATTER.format(new Date(value));
 }
 
 export function UsersPage() {
   const { user: currentUser } = useAuth();
+  const { notify } = useToast();
 
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [search, setSearch] = useState('');
@@ -45,29 +57,39 @@ export function UsersPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] =
     useState<ManagedUser | null>(null);
+  const [pendingUser, setPendingUser] =
+    useState<ManagedUser | null>(null);
 
-  const loadUsers = async () => {
-    try {
-      setLoading(true);
-      setError('');
+  const loadUsers = useCallback(
+    async (mode: 'initial' | 'refresh' = 'initial') => {
+      try {
+        if (mode === 'initial') {
+          setLoading(true);
+        }
 
-      const data = await getUsers();
+        setError('');
 
-      setUsers(data);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'No se pudieron cargar los usuarios.',
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+        const data = await getUsers();
+
+        setUsers(data);
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'No se pudieron cargar los usuarios.',
+        );
+      } finally {
+        if (mode === 'initial') {
+          setLoading(false);
+        }
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
-    void loadUsers();
-  }, []);
+    void loadUsers('initial');
+  }, [loadUsers]);
 
   const filteredUsers = useMemo(
     () =>
@@ -98,7 +120,9 @@ export function UsersPage() {
 
     setShowForm(false);
 
-    await loadUsers();
+    await loadUsers('refresh');
+
+    notify('Usuario creado correctamente.');
   };
 
   const handleUpdate = async (values: UserFormValues) => {
@@ -121,36 +145,29 @@ export function UsersPage() {
 
     setEditingUser(null);
 
-    await loadUsers();
+    await loadUsers('refresh');
+
+    notify('Usuario actualizado correctamente.');
   };
 
   const handleToggleActive = async (user: ManagedUser) => {
-    const action = user.active ? 'desactivar' : 'activar';
-    const confirmed = window.confirm(
-      `¿Deseas ${action} a ${user.firstName} ${user.lastName}?`,
+    await updateUser(user.id, { active: !user.active });
+
+    await loadUsers('refresh');
+
+    notify(
+      user.active
+        ? `${user.firstName} ${user.lastName} fue desactivado.`
+        : `${user.firstName} ${user.lastName} fue activado.`,
     );
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      setError('');
-
-      await updateUser(user.id, { active: !user.active });
-
-      await loadUsers();
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'No se pudo actualizar el usuario.',
-      );
-    }
   };
 
   if (loading) {
-    return <div className="loading-state">Cargando usuarios...</div>;
+    return (
+      <div className="page-container">
+        <LoadingState label="Cargando usuarios..." />
+      </div>
+    );
   }
 
   return (
@@ -176,82 +193,81 @@ export function UsersPage() {
         </button>
       </div>
 
-      {error && <div className="alert error">{error}</div>}
+      {error && (
+        <div className="alert error" role="alert">
+          {error}
+        </div>
+      )}
 
       <div className="members-toolbar">
-        <div className="search-box">
-          <span>⌕</span>
+        <SearchField
+          label="Buscar usuarios"
+          placeholder="Buscar por nombre, correo o rol..."
+          value={search}
+          onChange={setSearch}
+        />
 
-          <input
-            placeholder="Buscar por nombre, correo o rol..."
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-        </div>
-
-        <div className="members-count">
+        <div className="members-count" aria-live="polite">
           {filteredUsers.length} de {users.length} usuarios
         </div>
       </div>
 
       {(showForm || editingUser) && (
-        <div className="modal-backdrop">
-          <div className="modal">
-            <div className="modal-header">
-              <div>
-                <h2>
-                  {editingUser ? 'Editar usuario' : 'Nuevo usuario'}
-                </h2>
-
-                <p>
-                  {editingUser
-                    ? 'Actualiza los datos, el rol o la contraseña.'
-                    : 'La persona podrá iniciar sesión con estas credenciales.'}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                className="modal-close"
-                onClick={() => {
-                  setShowForm(false);
-                  setEditingUser(null);
-                }}
-                aria-label="Cerrar"
-              >
-                ×
-              </button>
-            </div>
-
-            <UserForm
-              user={editingUser}
-              isSelf={editingUser?.id === currentUser?.id}
-              onSubmit={
-                editingUser ? handleUpdate : handleCreate
-              }
-              onCancel={() => {
-                setShowForm(false);
-                setEditingUser(null);
-              }}
-            />
-          </div>
-        </div>
+        <Modal
+          title={
+            editingUser ? 'Editar usuario' : 'Nuevo usuario'
+          }
+          description={
+            editingUser
+              ? 'Actualiza los datos, el rol o la contraseña.'
+              : 'La persona podrá iniciar sesión con estas credenciales.'
+          }
+          onClose={() => {
+            setShowForm(false);
+            setEditingUser(null);
+          }}
+        >
+          <UserForm
+            user={editingUser}
+            isSelf={editingUser?.id === currentUser?.id}
+            onSubmit={
+              editingUser ? handleUpdate : handleCreate
+            }
+            onCancel={() => {
+              setShowForm(false);
+              setEditingUser(null);
+            }}
+          />
+        </Modal>
       )}
 
       {filteredUsers.length === 0 ? (
-        <div className="empty-state">
-          No hay usuarios que coincidan con la búsqueda.
-        </div>
+        <EmptyState
+          icon="👥"
+          title={
+            users.length === 0
+              ? 'No hay usuarios'
+              : 'Sin resultados'
+          }
+          description={
+            users.length === 0
+              ? 'Crea el primer usuario para dar acceso al sistema.'
+              : 'Ningún usuario coincide con la búsqueda.'
+          }
+        />
       ) : (
         <div className="table-container">
           <table className="members-table">
+            <caption className="sr-only">
+              Usuarios con acceso a GymFlow
+            </caption>
             <thead>
               <tr>
-                <th>Usuario</th>
-                <th>Rol</th>
-                <th>Estado</th>
-                <th>Último acceso</th>
-                <th>Acciones</th>
+                <th scope="col">Usuario</th>
+                <th scope="col">Rol</th>
+                <th scope="col">Estado</th>
+                <th scope="col">Último acceso</th>
+                <th scope="col">Acciones</th>
               </tr>
             </thead>
 
@@ -270,8 +286,8 @@ export function UsersPage() {
                     <span
                       className={`status-badge ${
                         user.role === 'ADMIN'
-                          ? 'status-scheduled'
-                          : 'status-inactive'
+                          ? 'role-admin'
+                          : 'role-reception'
                       }`}
                     >
                       {roleLabels[user.role]}
@@ -283,7 +299,7 @@ export function UsersPage() {
                       className={`status-badge ${
                         user.active
                           ? 'status-active'
-                          : 'status-cancelled'
+                          : 'status-inactive'
                       }`}
                     >
                       {user.active ? 'Activo' : 'Inactivo'}
@@ -301,6 +317,7 @@ export function UsersPage() {
                           setShowForm(false);
                           setEditingUser(user);
                         }}
+                        aria-label={`Editar a ${user.firstName} ${user.lastName}`}
                       >
                         Editar
                       </button>
@@ -309,7 +326,12 @@ export function UsersPage() {
                         type="button"
                         className="table-action danger"
                         disabled={user.id === currentUser?.id}
-                        onClick={() => handleToggleActive(user)}
+                        onClick={() =>
+                          setPendingUser(user)
+                        }
+                        aria-label={`${
+                          user.active ? 'Desactivar' : 'Activar'
+                        } a ${user.firstName} ${user.lastName}`}
                       >
                         {user.active ? 'Desactivar' : 'Activar'}
                       </button>
@@ -320,6 +342,33 @@ export function UsersPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {pendingUser && (
+        <ActionDialog
+          title={
+            pendingUser.active
+              ? 'Desactivar usuario'
+              : 'Activar usuario'
+          }
+          description={
+            <>
+              <strong>
+                {pendingUser.firstName}{' '}
+                {pendingUser.lastName}
+              </strong>
+              {pendingUser.active
+                ? ' no podrá iniciar sesión hasta que se reactive.'
+                : ' podrá volver a iniciar sesión con su contraseña actual.'}
+            </>
+          }
+          confirmLabel={
+            pendingUser.active ? 'Desactivar' : 'Activar'
+          }
+          danger={pendingUser.active}
+          onConfirm={() => handleToggleActive(pendingUser)}
+          onClose={() => setPendingUser(null)}
+        />
       )}
     </section>
   );

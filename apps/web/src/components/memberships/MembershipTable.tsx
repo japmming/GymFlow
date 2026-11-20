@@ -1,6 +1,7 @@
 import type { Membership } from '../../types/membership';
 import { formatDateOnly } from '../../utils/date';
 import { getMembershipState } from '../../utils/membershipStatus';
+import { EmptyState } from '../ui/EmptyState';
 
 interface MembershipTableProps {
   memberships: Membership[];
@@ -17,26 +18,37 @@ export function MembershipTable({
 }: MembershipTableProps) {
   if (memberships.length === 0) {
     return (
-      <div className="empty-state">
-        No hay membresías registradas.
-      </div>
+      <EmptyState
+        icon="🎫"
+        title="No hay membresías registradas"
+        description="Asocia un plan a un socio para comenzar."
+      />
     );
   }
 
   return (
     <div className="table-container">
       <table>
+        <caption className="sr-only">
+          Membresías registradas
+        </caption>
         <thead>
           <tr>
-            <th>Miembro</th>
-            <th>Plan</th>
-            <th>Inicio</th>
-            <th>Vencimiento</th>
-            <th>Precio</th>
-            <th>Pagado</th>
-            <th>Saldo</th>
-            <th>Estado</th>
-            <th>Acciones</th>
+            <th scope="col">Miembro</th>
+            <th scope="col">Plan</th>
+            <th scope="col">Inicio</th>
+            <th scope="col">Vencimiento</th>
+            <th scope="col" className="table-number">
+              Precio
+            </th>
+            <th scope="col" className="table-number">
+              Pagado
+            </th>
+            <th scope="col" className="table-number">
+              Saldo
+            </th>
+            <th scope="col">Estado</th>
+            <th scope="col">Acciones</th>
           </tr>
         </thead>
 
@@ -89,15 +101,15 @@ export function MembershipTable({
                   )}
                 </td>
 
-                <td>
+                <td className="table-number">
                   S/ {price.toFixed(2)}
                 </td>
 
-                <td>
+                <td className="table-number">
                   S/ {paidAmount.toFixed(2)}
                 </td>
 
-                <td>
+                <td className="table-number">
                   <strong>
                     S/ {balance.toFixed(2)}
                   </strong>
@@ -132,6 +144,7 @@ export function MembershipTable({
                           cancellingId ===
                           membership.id
                         }
+                        aria-label={`Cancelar la membresía de ${membership.member.firstName} ${membership.member.lastName}`}
                       >
                         {cancellingId ===
                         membership.id

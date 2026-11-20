@@ -3,6 +3,8 @@ import { QRCodeCanvas, QRCodeSVG } from 'qrcode.react';
 
 import { regenerateMemberQr } from '../../services/api';
 
+import { Modal } from '../ui/Modal';
+
 interface MemberQrProps {
   memberId: string;
   memberName: string;
@@ -99,7 +101,11 @@ export function MemberQr({
 
     link.href = canvas.toDataURL('image/png');
     link.download = `qr-${safeCode}.png`;
+    link.style.display = 'none';
+
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
   }
 
   async function handleRegenerate() {
@@ -132,29 +138,12 @@ export function MemberQr({
   }
 
   return (
-    <div
-      className="modal-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="member-qr-title"
+    <Modal
+      title="QR del socio"
+      description={memberName}
+      onClose={onClose}
+      className="qr-modal"
     >
-      <div className="modal qr-modal">
-        <div className="modal-header">
-          <div>
-            <h2 id="member-qr-title">QR del socio</h2>
-            <p>{memberName}</p>
-          </div>
-
-          <button
-            type="button"
-            className="modal-close"
-            onClick={onClose}
-            aria-label="Cerrar"
-          >
-            ×
-          </button>
-        </div>
-
         <div className="member-qr-container">
           <div className="member-qr-code">
             <QRCodeSVG
@@ -162,6 +151,7 @@ export function MemberQr({
               size={280}
               level="M"
               includeMargin
+              title={`Código QR de ${memberName}`}
             />
 
             <QRCodeCanvas
@@ -324,7 +314,6 @@ export function MemberQr({
             Cerrar
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

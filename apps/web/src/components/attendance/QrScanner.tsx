@@ -1,4 +1,9 @@
-import { useEffect, useId, useRef } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from 'react';
 import {
   Html5Qrcode,
   Html5QrcodeSupportedFormats,
@@ -8,6 +13,8 @@ interface QrScannerProps {
   onScan: (value: string) => void;
   onError?: (message: string) => void;
 }
+
+type ScannerStatus = 'starting' | 'ready' | 'error';
 
 const UNLOCK_DELAY_MS = 600;
 
@@ -37,6 +44,9 @@ export function QrScanner({
   const scannedRef = useRef(false);
   const onScanRef = useRef(onScan);
   const onErrorRef = useRef(onError);
+
+  const [status, setStatus] =
+    useState<ScannerStatus>('starting');
 
   const rawId = useId();
   const elementId = `gymflow-qr-reader-${rawId.replace(
@@ -129,7 +139,10 @@ export function QrScanner({
           // Se desmontó mientras la cámara arrancaba.
           if (disposed) {
             await stopAndClear(scanner);
+            return;
           }
+
+          setStatus('ready');
         } catch (error) {
           if (disposed) {
             return;
@@ -139,6 +152,8 @@ export function QrScanner({
             'Error iniciando lector QR:',
             error,
           );
+
+          setStatus('error');
 
           onErrorRef.current?.(
             'No se pudo acceder a la cámara. Verifica los permisos del navegador.',
@@ -167,11 +182,23 @@ export function QrScanner({
   }, [elementId]);
 
   return (
-    <div className="qr-scanner-wrapper">
+    <div
+      className="qr-scanner-wrapper"
+      aria-label="Lector de código QR con la cámara"
+      role="group"
+    >
       <div id={elementId} className="qr-reader" />
 
-      <p className="qr-scanner-help">
-        Coloca el código QR dentro del recuadro.
+      <p
+        className="qr-scanner-help"
+        role={status === 'error' ? 'alert' : 'status'}
+      >
+        {status === 'starting' &&
+          'Iniciando cámara...'}
+        {status === 'ready' &&
+          'Coloca el código QR dentro del recuadro.'}
+        {status === 'error' &&
+          'No se pudo iniciar la cámara. Puedes ingresar el código de socio manualmente.'}
       </p>
     </div>
   );

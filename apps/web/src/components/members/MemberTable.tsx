@@ -2,6 +2,7 @@ import type { Member } from '../../types/member';
 import { useState } from 'react';
 import { formatDateOnly } from '../../utils/date';
 import { getMembershipState } from '../../utils/membershipStatus';
+import { EmptyState } from '../ui/EmptyState';
 import { MemberQr } from './MemberQr';
 
 interface MemberTableProps {
@@ -23,15 +24,11 @@ export function MemberTable({
 
   if (members.length === 0) {
     return (
-      <div className="empty-state">
-        <div className="empty-state-icon">👤</div>
-
-        <h3>No hay socios</h3>
-
-        <p>
-          No encontramos socios que coincidan con tu búsqueda.
-        </p>
-      </div>
+      <EmptyState
+        icon="👤"
+        title="No hay socios"
+        description="No hay socios registrados o ninguno coincide con la búsqueda."
+      />
     );
   }
 
@@ -39,16 +36,21 @@ export function MemberTable({
     <>
       <div className="table-container">
         <table className="members-table">
+        <caption className="sr-only">
+          Listado de socios registrados
+        </caption>
         <thead>
           <tr>
-            <th>Socio</th>
-            <th>DNI</th>
-            <th>Código</th>
-            <th>Teléfono</th>
-            <th>Correo</th>
-            <th>Membresía</th>
-            <th>Estado</th>
-            <th></th>
+            <th scope="col">Socio</th>
+            <th scope="col">DNI</th>
+            <th scope="col">Código</th>
+            <th scope="col">Teléfono</th>
+            <th scope="col">Correo</th>
+            <th scope="col">Membresía</th>
+            <th scope="col">Estado</th>
+            <th scope="col">
+              <span className="sr-only">Acciones</span>
+            </th>
           </tr>
         </thead>
 
@@ -69,7 +71,7 @@ export function MemberTable({
               <tr key={member.id}>
                 <td>
                   <div className="member-name">
-                    <div className="member-avatar">
+                    <div className="member-avatar" aria-hidden="true">
                       {member.firstName.charAt(0)}
                       {member.lastName.charAt(0)}
                     </div>
@@ -137,16 +139,20 @@ export function MemberTable({
                 <td>
                   <div className="table-actions">
                     <button
+                      type="button"
                       className="table-action"
                       onClick={() => onEdit(member)}
+                      aria-label={`Editar a ${member.firstName} ${member.lastName}`}
                     >
                       Editar
                     </button>
 
                     {canManage && member.status === 'ACTIVE' && (
                       <button
+                        type="button"
                         className="table-action danger"
                         onClick={() => onDeactivate(member)}
+                        aria-label={`Desactivar a ${member.firstName} ${member.lastName}`}
                       >
                         Desactivar
                       </button>
@@ -154,8 +160,10 @@ export function MemberTable({
 
                     {canManage && member.status === 'INACTIVE' && (
                       <button
+                        type="button"
                         className="table-action"
                         onClick={() => onReactivate(member)}
+                        aria-label={`Reactivar a ${member.firstName} ${member.lastName}`}
                       >
                         Reactivar
                       </button>
@@ -166,6 +174,7 @@ export function MemberTable({
                       onClick={() =>
                         setSelectedMemberQr(member)
                       }
+                      aria-label={`Ver QR de ${member.firstName} ${member.lastName}`}
                     >
                       Ver QR
                     </button>

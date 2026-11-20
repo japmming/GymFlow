@@ -7,6 +7,7 @@ export function LoginPage() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -33,7 +34,9 @@ export function LoginPage() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-brand">
-          <span className="login-logo">GF</span>
+          <span className="login-logo" aria-hidden="true">
+            GF
+          </span>
 
           <div>
             <h1>GymFlow</h1>
@@ -53,11 +56,16 @@ export function LoginPage() {
           </div>
         )}
 
-        <form className="login-form" onSubmit={handleSubmit}>
+        <form
+          className="login-form"
+          onSubmit={handleSubmit}
+          aria-busy={loading}
+        >
           <label className="login-field">
             <span>Correo electrónico</span>
 
             <input
+              name="email"
               type="email"
               autoComplete="email"
               required
@@ -71,13 +79,25 @@ export function LoginPage() {
             <span>Contraseña</span>
 
             <input
-              type="password"
+              name="password"
+              type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
               required
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="••••••••"
             />
+          </label>
+
+          <label className="login-show-password">
+            <input
+              type="checkbox"
+              checked={showPassword}
+              onChange={(event) =>
+                setShowPassword(event.target.checked)
+              }
+            />
+            Mostrar contraseña
           </label>
 
           <button

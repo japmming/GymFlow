@@ -1,10 +1,11 @@
 import type { Payment } from '../../types/payment';
+import { EmptyState } from '../ui/EmptyState';
 
 interface PaymentTableProps {
   payments: Payment[];
   canReverse: boolean;
   onReverse: (payment: Payment) => void;
-  reversing: boolean;
+  reversingId: string | null;
 }
 
 const methodLabels: Record<string, string> = {
@@ -16,44 +17,50 @@ const methodLabels: Record<string, string> = {
   OTHER: 'Otro',
 };
 
+const DATE_FORMATTER = new Intl.DateTimeFormat('es-PE', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+});
+
 const formatDate = (value: string) => {
-  return new Date(value).toLocaleDateString(
-    'es-PE',
-    {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    },
-  );
+  return DATE_FORMATTER.format(new Date(value));
 };
 
 export function PaymentTable({
   payments,
   canReverse,
   onReverse,
-  reversing,
+  reversingId,
 }: PaymentTableProps) {
   if (payments.length === 0) {
     return (
-      <div className="empty-state">
-        No hay pagos registrados.
-      </div>
+      <EmptyState
+        icon="🧾"
+        title="No hay pagos registrados"
+        description="Los pagos que registres aparecerán aquí."
+      />
     );
   }
 
   return (
     <div className="table-container">
       <table>
+        <caption className="sr-only">
+          Historial de pagos registrados
+        </caption>
         <thead>
           <tr>
-            <th>Fecha</th>
-            <th>Miembro</th>
-            <th>Membresía</th>
-            <th>Monto</th>
-            <th>Método</th>
-            <th>Referencia</th>
-            <th>Estado</th>
-            <th>Acciones</th>
+            <th scope="col">Fecha</th>
+            <th scope="col">Miembro</th>
+            <th scope="col">Membresía</th>
+            <th scope="col" className="table-number">
+              Monto
+            </th>
+            <th scope="col">Método</th>
+            <th scope="col">Referencia</th>
+            <th scope="col">Estado</th>
+            <th scope="col">Acciones</th>
           </tr>
         </thead>
 
@@ -81,7 +88,7 @@ export function PaymentTable({
                 {payment.membership.plan.name}
               </td>
 
-              <td>
+              <td className="table-number">
                 <strong>
                   S/ {Number(payment.amount).toFixed(2)}
                 </strong>
@@ -123,9 +130,12 @@ export function PaymentTable({
                       type="button"
                       className="table-action danger"
                       onClick={() => onReverse(payment)}
-                      disabled={reversing}
+                      disabled={reversingId === payment.id}
+                      aria-label={`Reversar el pago de ${payment.member.firstName} ${payment.member.lastName}`}
                     >
-                      Reversar
+                      {reversingId === payment.id
+                        ? 'Reversando...'
+                        : 'Reversar'}
                     </button>
                   </div>
                 )}

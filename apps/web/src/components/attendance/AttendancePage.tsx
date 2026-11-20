@@ -18,7 +18,17 @@ import type {
   CheckInRequest,
 } from '../../types/attendance';
 
-import { formatDateOnly } from '../../utils/date';
+import {
+  addDaysToDateKey,
+  formatDateOnly,
+  todayDateKey,
+} from '../../utils/date';
+
+import { ActionDialog } from '../ui/ActionDialog';
+import { EmptyState } from '../ui/EmptyState';
+import { LoadingState } from '../ui/LoadingState';
+import { Pagination } from '../ui/Pagination';
+import { useToast } from '../ui/ToastProvider';
 
 import { QrScanner } from './QrScanner';
 
@@ -30,6 +40,7 @@ const EMPTY_FILTERS = {
 
 export function AttendancePage() {
   const { isAdmin } = useAuth();
+  const { notify } = useToast();
 
   const [attendances, setAttendances] = useState<
     Attendance[]
@@ -64,6 +75,9 @@ export function AttendancePage() {
     useState(0);
   const [actionId, setActionId] =
     useState<string | null>(null);
+
+  const [pendingCancel, setPendingCancel] =
+    useState<Attendance | null>(null);
 
   const loadAttendances = useCallback(async () => {
     try {
@@ -112,6 +126,10 @@ export function AttendancePage() {
         const result = await checkIn(payload);
 
         setLastAttendance(result);
+
+        notify(
+          `Ingreso registrado: ${result.member.firstName} ${result.member.lastName}.`,
+        );
 
         setRefreshKey(
           (current) => current + 1,
@@ -165,34 +183,21 @@ export function AttendancePage() {
 
   async function handleCancelAttendance(
     attendance: Attendance,
+    reason: string,
   ) {
-    const reason = window.prompt(
-      `Motivo de la anulación de la asistencia de ${attendance.member.firstName} ${attendance.member.lastName}:`,
-    );
-
-    if (!reason?.trim()) {
-      return;
-    }
-
     try {
       setActionId(attendance.id);
-      setHistoryError('');
 
-      await cancelAttendance(
-        attendance.id,
-        reason.trim(),
-      );
+      await cancelAttendance(attendance.id, reason);
 
       if (lastAttendance?.id === attendance.id) {
         setLastAttendance(null);
       }
 
       setRefreshKey((current) => current + 1);
-    } catch (err) {
-      setHistoryError(
-        err instanceof Error
-          ? err.message
-          : 'No se pudo anular la asistencia.',
+
+      notify(
+        `La asistencia de ${attendance.member.firstName} ${attendance.member.lastName} fue anulada.`,
       );
     } finally {
       setActionId(null);
@@ -204,16 +209,13 @@ export function AttendancePage() {
   ) {
     try {
       setActionId(attendance.id);
-      setHistoryError('');
 
       await restoreAttendance(attendance.id);
 
       setRefreshKey((current) => current + 1);
-    } catch (err) {
-      setHistoryError(
-        err instanceof Error
-          ? err.message
-          : 'No se pudo restaurar la asistencia.',
+
+      notify(
+        `La asistencia de ${attendance.member.firstName} ${attendance.member.lastName} fue restaurada.`,
       );
     } finally {
       setActionId(null);
@@ -259,6 +261,29 @@ export function AttendancePage() {
     setHistoryError('');
   }
 
+  function handleQuickRange(days: number | 'month') {
+    const to = todayDateKey();
+    const from =
+      days === 'month'
+        ? `${to.slice(0, 8)}01`
+        : addDaysToDateKey(to, -(days - 1));
+
+    setFilters((current) => ({
+      ...current,
+      from,
+      to,
+    }));
+
+    setAppliedFilters((current) => ({
+      ...current,
+      from,
+      to,
+    }));
+
+    setPage(1);
+    setHistoryError('');
+  }
+
   return (
     <div className="page-container">
       <div className="page-header">
@@ -272,17 +297,19 @@ export function AttendancePage() {
         </div>
 
         <button
-          className="secondary-button"
+          type="button"
+          className="button secondary"
           onClick={() => {
             void loadAttendances();
           }}
+          disabled={loading}
         >
-          Actualizar
+          {loading ? 'Actualizando...' : 'Actualizar'}
         </button>
       </div>
 
       {error && (
-        <div className="error-message">
+        <div className="error-message" role="alert">
           {error}
         </div>
       )}
@@ -310,6 +337,7 @@ export function AttendancePage() {
             <label>
               Código de socio
               <input
+                name="memberCode"
                 value={memberCode}
                 onChange={(e) =>
                   setMemberCode(e.target.value)
@@ -317,6 +345,7 @@ export function AttendancePage() {
                 maxLength={30}
                 placeholder="Ej. C0001"
                 autoComplete="off"
+                autoCapitalize="characters"
                 disabled={processing}
               />
             </label>
@@ -333,7 +362,10 @@ export function AttendancePage() {
           </form>
 
           {processing && (
-            <div className="processing-message">
+            <div
+              className="processing-message"
+              role="status"
+            >
               Validando membresía...
             </div>
           )}
@@ -349,11 +381,12 @@ export function AttendancePage() {
               attendance={lastAttendance}
             />
           ) : (
-            <div className="empty-state">
-              Escanea un código QR o ingresa un
-              código de socio para registrar una
-              asistencia.
-            </div>
+            <EmptyState
+              compact
+              icon="📷"
+              title="Esperando un ingreso"
+              description="Escanea un código QR o ingresa un código de socio para registrar una asistencia."
+            />
           )}
         </section>
       </div>
@@ -371,6 +404,36 @@ export function AttendancePage() {
           className="attendance-filters"
           onSubmit={handleFilterSubmit}
         >
+          <div className="filter-presets">
+            <span className="sr-only">
+              Rangos de fecha rápidos
+            </span>
+
+            <button
+              type="button"
+              className="filter-chip"
+              onClick={() => handleQuickRange(1)}
+            >
+              Hoy
+            </button>
+
+            <button
+              type="button"
+              className="filter-chip"
+              onClick={() => handleQuickRange(7)}
+            >
+              7 días
+            </button>
+
+            <button
+              type="button"
+              className="filter-chip"
+              onClick={() => handleQuickRange('month')}
+            >
+              Este mes
+            </button>
+          </div>
+
           <label>
             Desde
             <input
@@ -434,7 +497,7 @@ export function AttendancePage() {
           </div>
         </form>
 
-        <div className="attendance-total">
+        <div className="attendance-total" aria-live="polite">
           {total}{' '}
           {total === 1
             ? 'asistencia'
@@ -442,57 +505,66 @@ export function AttendancePage() {
         </div>
 
         {historyError && (
-          <div className="alert error">
+          <div className="alert error" role="alert">
             {historyError}
           </div>
         )}
 
         {loading ? (
-          <p>Cargando asistencias...</p>
+          <LoadingState
+            label="Cargando asistencias..."
+            compact
+          />
         ) : (
           <>
             <AttendanceTable
               attendances={attendances}
               canManage={isAdmin}
-              onCancel={handleCancelAttendance}
+              onCancel={setPendingCancel}
               onRestore={handleRestoreAttendance}
               actionId={actionId}
             />
 
-            {totalPages > 1 && (
-              <div className="pagination">
-                <button
-                  className="button secondary"
-                  disabled={page <= 1}
-                  onClick={() =>
-                    setPage(
-                      (current) => current - 1,
-                    )
-                  }
-                >
-                  Anterior
-                </button>
-
-                <span>
-                  Página {page} de {totalPages}
-                </span>
-
-                <button
-                  className="button secondary"
-                  disabled={page >= totalPages}
-                  onClick={() =>
-                    setPage(
-                      (current) => current + 1,
-                    )
-                  }
-                >
-                  Siguiente
-                </button>
-              </div>
-            )}
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              totalItems={total}
+              pageSize={20}
+              onPageChange={setPage}
+            />
           </>
         )}
       </section>
+
+      {pendingCancel && (
+        <ActionDialog
+          title="Anular asistencia"
+          description={
+            <>
+              Se anulará el ingreso de{' '}
+              <strong>
+                {pendingCancel.member.firstName}{' '}
+                {pendingCancel.member.lastName}
+              </strong>
+              . Indica el motivo para dejar registro.
+            </>
+          }
+          confirmLabel="Anular asistencia"
+          cancelLabel="Volver"
+          danger
+          reason={{
+            label: 'Motivo de la anulación',
+            placeholder:
+              'Ej. El socio ingresó por error o el registro está duplicado',
+            required: true,
+            maxLength: 240,
+          }}
+          onConfirm={(reason) =>
+            handleCancelAttendance(pendingCancel, reason)
+          }
+          onClose={() => setPendingCancel(null)}
+        />
+      )}
     </div>
   );
 }
@@ -511,7 +583,10 @@ function AttendanceSuccess({
 
   return (
     <div className="attendance-success">
-      <div className="attendance-success-icon">
+      <div
+        className="attendance-success-icon"
+        aria-hidden="true"
+      >
         ✓
       </div>
 
@@ -595,24 +670,30 @@ function AttendanceTable({
 }) {
   if (attendances.length === 0) {
     return (
-      <div className="empty-state">
-        No hay asistencias registradas.
-      </div>
+      <EmptyState
+        icon="🕒"
+        title="No hay asistencias registradas"
+        description="Los ingresos que registres aparecerán aquí."
+        compact
+      />
     );
   }
 
   return (
     <div className="table-container">
       <table>
+        <caption className="sr-only">
+          Historial de asistencias
+        </caption>
         <thead>
           <tr>
-            <th>Fecha</th>
-            <th>Hora</th>
-            <th>Miembro</th>
-            <th>Plan</th>
-            <th>Origen</th>
-            <th>Estado</th>
-            <th>Acciones</th>
+            <th scope="col">Fecha</th>
+            <th scope="col">Hora</th>
+            <th scope="col">Miembro</th>
+            <th scope="col">Plan</th>
+            <th scope="col">Origen</th>
+            <th scope="col">Estado</th>
+            <th scope="col">Acciones</th>
           </tr>
         </thead>
 
@@ -686,6 +767,7 @@ function AttendanceTable({
                         disabled={
                           actionId === attendance.id
                         }
+                        aria-label={`Restaurar la asistencia de ${attendance.member.firstName} ${attendance.member.lastName}`}
                       >
                         {actionId === attendance.id
                           ? 'Restaurando...'
@@ -701,6 +783,7 @@ function AttendanceTable({
                         disabled={
                           actionId === attendance.id
                         }
+                        aria-label={`Anular la asistencia de ${attendance.member.firstName} ${attendance.member.lastName}`}
                       >
                         {actionId === attendance.id
                           ? 'Anulando...'
@@ -717,25 +800,23 @@ function AttendanceTable({
   );
 }
 
+const DATE_FORMATTER = new Intl.DateTimeFormat('es-PE', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+});
+
+const TIME_FORMATTER = new Intl.DateTimeFormat('es-PE', {
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
 function formatDate(value: string) {
-  return new Date(value).toLocaleDateString(
-    'es-PE',
-    {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    },
-  );
+  return DATE_FORMATTER.format(new Date(value));
 }
 
 function formatTime(value: string) {
-  return new Date(value).toLocaleTimeString(
-    'es-PE',
-    {
-      hour: '2-digit',
-      minute: '2-digit',
-    },
-  );
+  return TIME_FORMATTER.format(new Date(value));
 }
 
 function formatSource(source?: string | null) {

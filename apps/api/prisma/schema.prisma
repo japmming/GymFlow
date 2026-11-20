@@ -25,12 +25,15 @@ model Gym {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
-  members     Member[]
-  plans       Plan[]
-  memberships Membership[]
-  payments    Payment[]
-  attendances Attendance[]
-  users       User[]
+  members       Member[]
+  plans         Plan[]
+  memberships   Membership[]
+  payments      Payment[]
+  attendances   Attendance[]
+  users         User[]
+  events        Event[]
+  reservations  Reservation[]
+  eventPayments EventPayment[]
 }
 
 enum UserRole {
@@ -90,9 +93,10 @@ model Member {
 
   gym Gym @relation(fields: [gymId], references: [id], onDelete: Restrict)
 
-  memberships Membership[]
-  payments    Payment[]
-  attendances Attendance[]
+  memberships  Membership[]
+  payments     Payment[]
+  attendances  Attendance[]
+  reservations Reservation[]
 
   @@unique([gymId, documentNumber])
   @@unique([gymId, memberCode])
@@ -213,4 +217,107 @@ model Attendance {
   @@index([gymId, attendanceDate])
   @@index([gymId, checkedInAt])
   @@index([gymId, memberId, checkedInAt])
+}
+
+enum EventType {
+  CLASS
+  WORKSHOP
+  COMPETITION
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  COMPLETED
+}
+
+model Event {
+  id                       String      @id @default(uuid()) @db.Uuid
+  gymId                    String      @db.Uuid
+  name                     String      @db.VarChar(150)
+  description              String?     @db.VarChar(1000)
+  type                     EventType
+  status                   EventStatus @default(DRAFT)
+  startDate                DateTime
+  endDate                  DateTime
+  capacity                 Int
+  price                    Decimal     @default(0) @db.Decimal(10, 2)
+  requiresActiveMembership Boolean     @default(false)
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
+
+  gym Gym @relation(fields: [gymId], references: [id], onDelete: Restrict)
+
+  reservations Reservation[]
+
+  @@index([gymId, status])
+  @@index([gymId, type])
+  @@index([gymId, startDate])
+  @@index([gymId, status, startDate])
+}
+
+enum ReservationStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  CANCELLED
+}
+
+enum ReservationPaymentStatus {
+  NOT_REQUIRED
+  PENDING
+  PARTIALLY_PAID
+  PAID
+}
+
+model Reservation {
+  id       String @id @default(uuid()) @db.Uuid
+  gymId    String @db.Uuid
+  eventId  String @db.Uuid
+  memberId String @db.Uuid
+
+  status        ReservationStatus
+  paymentStatus ReservationPaymentStatus
+
+  amount Decimal @db.Decimal(10, 2)
+
+  reservedAt  DateTime  @default(now()) @db.Timestamptz(3)
+  paidAt      DateTime? @db.Timestamptz(3)
+  cancelledAt DateTime? @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  gym    Gym    @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  event  Event  @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Restrict)
+
+  payments EventPayment[]
+
+  @@index([gymId, eventId, status])
+  @@index([gymId, memberId])
+  @@index([gymId, paymentStatus])
+}
+
+model EventPayment {
+  id            String @id @default(uuid()) @db.Uuid
+  gymId         String @db.Uuid
+  reservationId String @db.Uuid
+
+  amount Decimal       @db.Decimal(10, 2)
+  method PaymentMethod
+  status PaymentStatus @default(COMPLETED)
+
+  reference String? @db.VarChar(100)
+  notes     String? @db.VarChar(500)
+
+  paymentDate DateTime @default(now()) @db.Timestamptz(3)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  gym         Gym         @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+
+  @@index([gymId, reservationId])
+  @@index([gymId, paymentDate])
+  @@index([gymId, status])
 }

@@ -5,9 +5,12 @@ import type {
   Member,
 } from '../../types/member';
 
+import { Modal } from '../ui/Modal';
+
 interface MemberFormProps {
   member?: Member | null;
   loading?: boolean;
+  error?: string | null;
   onSubmit: (
     data: CreateMemberRequest,
   ) => Promise<void>;
@@ -35,6 +38,7 @@ const emptyForm: FormState = {
 export function MemberForm({
   member,
   loading = false,
+  error,
   onSubmit,
   onCancel,
 }: MemberFormProps) {
@@ -87,153 +91,155 @@ export function MemberForm({
   const isEditing = Boolean(member);
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal">
-        <div className="modal-header">
-          <div>
-            <h2>
-              {isEditing
-                ? 'Editar socio'
-                : 'Nuevo socio'}
-            </h2>
+    <Modal
+      title={isEditing ? 'Editar socio' : 'Nuevo socio'}
+      description="Registra la información básica del socio."
+      onClose={onCancel}
+    >
+      <form
+        className="member-form"
+        onSubmit={handleSubmit}
+      >
+        <div className="form-grid">
+          <label>
+            Nombres
+            <input
+              name="firstName"
+              autoComplete="given-name"
+              value={form.firstName}
+              onChange={(e) =>
+                handleChange(
+                  'firstName',
+                  e.target.value,
+                )
+              }
+              required
+              minLength={2}
+            />
+          </label>
 
-            <p>
-              Registra la información básica del socio.
-            </p>
-          </div>
+          <label>
+            Apellidos
+            <input
+              name="lastName"
+              autoComplete="family-name"
+              value={form.lastName}
+              onChange={(e) =>
+                handleChange(
+                  'lastName',
+                  e.target.value,
+                )
+              }
+              required
+              minLength={2}
+            />
+          </label>
 
-          <button
-            className="modal-close"
-            onClick={onCancel}
-            type="button"
-          >
-            ×
-          </button>
+          <label>
+            DNI
+            <input
+              name="documentNumber"
+              inputMode="numeric"
+              value={form.documentNumber}
+              onChange={(e) =>
+                handleChange(
+                  'documentNumber',
+                  e.target.value,
+                )
+              }
+              maxLength={30}
+            />
+          </label>
+
+          <label>
+            Código de socio
+            <input
+              name="memberCode"
+              value={form.memberCode}
+              onChange={(e) =>
+                handleChange(
+                  'memberCode',
+                  e.target.value,
+                )
+              }
+              maxLength={30}
+              placeholder={
+                isEditing
+                  ? ''
+                  : 'Se genera automáticamente'
+              }
+              autoComplete="off"
+            />
+          </label>
+
+          <label>
+            Teléfono
+            <input
+              name="phone"
+              type="tel"
+              autoComplete="tel"
+              value={form.phone}
+              onChange={(e) =>
+                handleChange(
+                  'phone',
+                  e.target.value,
+                )
+              }
+              maxLength={30}
+            />
+          </label>
+
+          <label className="form-full">
+            Correo electrónico
+            <input
+              name="email"
+              type="email"
+              autoComplete="email"
+              value={form.email}
+              onChange={(e) =>
+                handleChange(
+                  'email',
+                  e.target.value,
+                )
+              }
+              maxLength={150}
+            />
+          </label>
         </div>
 
-        <form
-          className="member-form"
-          onSubmit={handleSubmit}
-        >
-          <div className="form-grid">
-            <label>
-              Nombres
-              <input
-                value={form.firstName}
-                onChange={(e) =>
-                  handleChange(
-                    'firstName',
-                    e.target.value,
-                  )
-                }
-                required
-                minLength={2}
-              />
-            </label>
-
-            <label>
-              Apellidos
-              <input
-                value={form.lastName}
-                onChange={(e) =>
-                  handleChange(
-                    'lastName',
-                    e.target.value,
-                  )
-                }
-                required
-                minLength={2}
-              />
-            </label>
-
-            <label>
-              DNI
-              <input
-                value={form.documentNumber}
-                onChange={(e) =>
-                  handleChange(
-                    'documentNumber',
-                    e.target.value,
-                  )
-                }
-                maxLength={30}
-              />
-            </label>
-
-            <label>
-              Código de socio
-              <input
-                value={form.memberCode}
-                onChange={(e) =>
-                  handleChange(
-                    'memberCode',
-                    e.target.value,
-                  )
-                }
-                maxLength={30}
-                placeholder={
-                  isEditing
-                    ? ''
-                    : 'Se genera automáticamente'
-                }
-                autoComplete="off"
-              />
-            </label>
-
-            <label>
-              Teléfono
-              <input
-                value={form.phone}
-                onChange={(e) =>
-                  handleChange(
-                    'phone',
-                    e.target.value,
-                  )
-                }
-                maxLength={30}
-              />
-            </label>
-
-            <label className="form-full">
-              Correo electrónico
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) =>
-                  handleChange(
-                    'email',
-                    e.target.value,
-                  )
-                }
-                maxLength={150}
-              />
-            </label>
+        {error && (
+          <div
+            id="member-form-error"
+            className="error-message"
+            role="alert"
+          >
+            {error}
           </div>
+        )}
 
-          <div className="modal-footer">
-            <button
-              type="button"
-              className="button secondary"
-              onClick={onCancel}
-              disabled={loading}
-            >
-              Cancelar
-            </button>
+        <div className="modal-footer">
+          <button
+            type="button"
+            className="button secondary"
+            onClick={onCancel}
+            disabled={loading}
+          >
+            Cancelar
+          </button>
 
-            <button
-              type="submit"
-              className="button primary"
-              disabled={loading}
-            >
-              {loading
-                ? 'Guardando...'
-                : isEditing
-                  ? 'Guardar cambios'
-                  : 'Registrar socio'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+          <button
+            type="submit"
+            className="button primary"
+            disabled={loading}
+          >
+            {loading
+              ? 'Guardando...'
+              : isEditing
+                ? 'Guardar cambios'
+                : 'Registrar socio'}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }

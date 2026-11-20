@@ -1,5 +1,15 @@
 import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import {
+  ApiBearerAuth,
+  ApiCookieAuth,
+  ApiCreatedResponse,
+  ApiForbiddenResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import type { CookieOptions, Request, Response } from 'express';
 
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -12,7 +22,21 @@ import {
 } from './auth.constants';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
+import {
+  AuthSessionResponseDto,
+  AuthUserDto,
+} from '../swagger/models/auth.model';
+import {
+  ErrorResponseDto,
+  SuccessResponseDto,
+} from '../swagger/models/common.model';
+import {
+  BEARER_AUTH,
+  REFRESH_COOKIE_AUTH,
+  SWAGGER_TAGS,
+} from '../swagger/swagger.constants';
 
+@ApiTags(SWAGGER_TAGS.AUTH)
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -22,6 +46,24 @@ export class AuthController {
 
   @Public()
   @Post('login')
+  @ApiOperation({
+    summary: 'Iniciar sesión',
+    description:
+      'Valida el correo y la contraseña. Devuelve un access token JWT y ' +
+      'establece la cookie httpOnly con el refresh token.',
+  })
+  @ApiCreatedResponse({
+    description: 'Credenciales válidas. Se emitió una nueva sesión.',
+    type: AuthSessionResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Correo o contraseña incorrectos.',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'El usuario está desactivado.',
+    type: ErrorResponseDto,
+  })
   async login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) response: Response,
@@ -38,6 +80,26 @@ export class AuthController {
 
   @Public()
   @Post('refresh')
+  @ApiCookieAuth(REFRESH_COOKIE_AUTH)
+  @ApiOperation({
+    summary: 'Renovar la sesión',
+    description:
+      'Rota el refresh token almacenado en la cookie httpOnly y devuelve un ' +
+      'nuevo access token. Si el token fue reutilizado, se revocan todas las ' +
+      'sesiones del usuario.',
+  })
+  @ApiCreatedResponse({
+    description: 'Sesión renovada correctamente.',
+    type: AuthSessionResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'No hay sesión activa o el refresh token expiró.',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'El usuario está desactivado.',
+    type: ErrorResponseDto,
+  })
   async refresh(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
@@ -56,6 +118,16 @@ export class AuthController {
 
   @Public()
   @Post('logout')
+  @ApiCookieAuth(REFRESH_COOKIE_AUTH)
+  @ApiOperation({
+    summary: 'Cerrar sesión',
+    description:
+      'Revoca el refresh token actual y elimina la cookie de sesión.',
+  })
+  @ApiCreatedResponse({
+    description: 'Sesión cerrada correctamente.',
+    type: SuccessResponseDto,
+  })
   async logout(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
@@ -70,6 +142,20 @@ export class AuthController {
   }
 
   @Get('me')
+  @ApiBearerAuth(BEARER_AUTH)
+  @ApiOperation({
+    summary: 'Obtener el perfil autenticado',
+    description:
+      'Devuelve los datos del usuario asociado al access token enviado.',
+  })
+  @ApiOkResponse({
+    description: 'Perfil del usuario autenticado.',
+    type: AuthUserDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Token ausente, inválido o expirado.',
+    type: ErrorResponseDto,
+  })
   getProfile(@CurrentUser() user: AuthenticatedUser) {
     return this.authService.getProfile(user.id);
   }
