@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../auth/AuthProvider';
 import {
   createUser,
+  getMembers,
   getUsers,
   updateUser,
 } from '../../services/api';
@@ -10,7 +11,9 @@ import type {
   CreateUserRequest,
   ManagedUser,
   UpdateUserRequest,
+  UserRole,
 } from '../../types/auth';
+import type { Member } from '../../types/member';
 import { matchesSearch } from '../../utils/search';
 
 import { ActionDialog } from '../ui/ActionDialog';
@@ -21,9 +24,10 @@ import { useToast } from '../ui/ToastProvider';
 import { Modal } from '../ui/Modal';
 import { UserForm, type UserFormValues } from './UserForm';
 
-const roleLabels: Record<string, string> = {
+const roleLabels: Record<UserRole, string> = {
   ADMIN: 'Administrador',
   RECEPTION: 'Recepción',
+  MEMBER: 'Socio',
 };
 
 const LAST_ACCESS_FORMATTER = new Intl.DateTimeFormat(
@@ -50,6 +54,8 @@ export function UsersPage() {
   const { notify } = useToast();
 
   const [users, setUsers] = useState<ManagedUser[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [membersLoading, setMembersLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -91,20 +97,61 @@ export function UsersPage() {
     void loadUsers('initial');
   }, [loadUsers]);
 
+  useEffect(() => {
+    let active = true;
+
+    const loadMembers = async () => {
+      try {
+        const data = await getMembers();
+
+        if (active) {
+          setMembers(data);
+        }
+      } catch {
+        if (active) {
+          setMembers([]);
+        }
+      } finally {
+        if (active) {
+          setMembersLoading(false);
+        }
+      }
+    };
+
+    void loadMembers();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const memberById = useMemo(
+    () => new Map(members.map((member) => [member.id, member])),
+    [members],
+  );
+
   const filteredUsers = useMemo(
     () =>
-      users.filter((user) =>
-        matchesSearch(
+      users.filter((user) => {
+        const linkedMember = user.memberId
+          ? memberById.get(user.memberId)
+          : null;
+
+        return matchesSearch(
           [
             user.firstName,
             user.lastName,
             user.email,
             roleLabels[user.role],
+            linkedMember?.memberCode ?? '',
+            linkedMember
+              ? `${linkedMember.firstName} ${linkedMember.lastName}`
+              : '',
           ],
           search,
-        ),
-      ),
-    [users, search],
+        );
+      }),
+    [users, memberById, search],
   );
 
   const handleCreate = async (values: UserFormValues) => {
@@ -114,6 +161,7 @@ export function UsersPage() {
       lastName: values.lastName,
       role: values.role,
       password: values.password,
+      memberId: values.memberId,
     };
 
     await createUser(data);
@@ -135,6 +183,7 @@ export function UsersPage() {
       lastName: values.lastName,
       role: values.role,
       active: values.active,
+      memberId: values.memberId,
     };
 
     if (values.password) {
@@ -230,6 +279,8 @@ export function UsersPage() {
           <UserForm
             user={editingUser}
             isSelf={editingUser?.id === currentUser?.id}
+            members={members}
+            membersLoading={membersLoading}
             onSubmit={
               editingUser ? handleUpdate : handleCreate
             }
@@ -280,6 +331,14 @@ export function UsersPage() {
                     </strong>
 
                     <small>{user.email}</small>
+
+                    {user.role === 'MEMBER' && user.memberId && (
+                      <small className="user-member-ref">
+                        Socio:{' '}
+                        {memberById.get(user.memberId)?.memberCode ??
+                          'Vinculado'}
+                      </small>
+                    )}
                   </td>
 
                   <td>
@@ -287,7 +346,9 @@ export function UsersPage() {
                       className={`status-badge ${
                         user.role === 'ADMIN'
                           ? 'role-admin'
-                          : 'role-reception'
+                          : user.role === 'MEMBER'
+                            ? 'role-member'
+                            : 'role-reception'
                       }`}
                     >
                       {roleLabels[user.role]}

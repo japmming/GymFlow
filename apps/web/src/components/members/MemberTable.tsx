@@ -9,6 +9,7 @@ interface MemberTableProps {
   members: Member[];
   canManage: boolean;
   onEdit: (member: Member) => void;
+  onOpenCrm: (member: Member) => void;
   onDeactivate: (member: Member) => void;
   onReactivate: (member: Member) => void;
 }
@@ -17,6 +18,7 @@ export function MemberTable({
   members,
   canManage,
   onEdit,
+  onOpenCrm,
   onDeactivate,
   onReactivate,
 }: MemberTableProps) {
@@ -145,6 +147,15 @@ export function MemberTable({
                       aria-label={`Editar a ${member.firstName} ${member.lastName}`}
                     >
                       Editar
+                    </button>
+
+                    <button
+                      type="button"
+                      className="table-action"
+                      onClick={() => onOpenCrm(member)}
+                      aria-label={`Abrir CRM de ${member.firstName} ${member.lastName}`}
+                    >
+                      CRM
                     </button>
 
                     {canManage && member.status === 'ACTIVE' && (

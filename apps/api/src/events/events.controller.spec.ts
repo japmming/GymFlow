@@ -30,6 +30,7 @@ const adminUser: AuthenticatedUser = {
   gymId: 'gym-autenticado',
   email: 'admin@gymflow.local',
   role: 'ADMIN',
+  memberId: null,
 };
 
 const receptionUser: AuthenticatedUser = {
@@ -37,6 +38,7 @@ const receptionUser: AuthenticatedUser = {
   gymId: 'gym-autenticado',
   email: 'recepcion@gymflow.local',
   role: 'RECEPTION',
+  memberId: null,
 };
 
 const eventPayload: CreateEventDto = {

@@ -63,6 +63,53 @@ export function dateKeyInTimeZone(date: Date, timeZone: string): string {
   return `${year}-${month}-${day}`;
 }
 
+/**
+ * Devuelve la hora local HH:mm de una fecha instantánea en una zona horaria.
+ */
+export function timeInTimeZone(date: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+
+  const hour = parts.find((part) => part.type === 'hour')?.value;
+  const minute = parts.find((part) => part.type === 'minute')?.value;
+
+  if (!hour || !minute) {
+    throw new Error('No se pudo calcular la hora local.');
+  }
+
+  return `${hour}:${minute}`;
+}
+
+/**
+ * Devuelve la franja horaria local HH:00 de una fecha instantánea.
+ */
+export function hourInTimeZone(date: Date, timeZone: string): string {
+  return `${timeInTimeZone(date, timeZone).slice(0, 2)}:00`;
+}
+
+/**
+ * Devuelve el instante UTC en que empieza un día local de la zona indicada.
+ */
+export function startOfDayInTimeZone(dateKey: string, timeZone: string): Date {
+  parseDateKey(dateKey);
+
+  const utcNoon = Date.parse(`${dateKey}T12:00:00.000Z`);
+  const localNoon = new Date(utcNoon);
+  const localKey = dateKeyInTimeZone(localNoon, timeZone);
+  const [hour, minute] = timeInTimeZone(localNoon, timeZone)
+    .split(':')
+    .map(Number);
+  const localNoonMinutes =
+    hour * 60 + minute + 1440 * compareDateKeys(localKey, dateKey);
+  const offsetMinutes = localNoonMinutes - 12 * 60;
+
+  return new Date(utcNoon - (12 * 60 + offsetMinutes) * 60_000);
+}
+
 export function todayDateKey(timeZone: string): string {
   return dateKeyInTimeZone(new Date(), timeZone);
 }

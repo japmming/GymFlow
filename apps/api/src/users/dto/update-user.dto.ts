@@ -44,6 +44,17 @@ export class UpdateUserDto {
   role?: UserRole;
 
   @ApiPropertyOptional({
+    description:
+      'Socio vinculado. Obligatorio si el rol resultante es MEMBER; se ignora para otros roles.',
+    format: 'uuid',
+    nullable: true,
+    example: '87c3e94d-360d-4191-bd6a-3818d00091f9',
+  })
+  @IsOptional()
+  @IsString()
+  memberId?: string | null;
+
+  @ApiPropertyOptional({
     description: 'Indica si el usuario puede iniciar sesión.',
     example: false,
   })

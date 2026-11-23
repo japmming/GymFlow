@@ -25,6 +25,7 @@ import { BEARER_AUTH, SWAGGER_TAGS } from '../swagger/swagger.constants';
 
 @ApiTags(SWAGGER_TAGS.MEMBERSHIPS)
 @ApiBearerAuth(BEARER_AUTH)
+@Roles('ADMIN', 'RECEPTION')
 @Controller('memberships')
 export class MembershipsController {
   constructor(private readonly membershipsService: MembershipsService) {}

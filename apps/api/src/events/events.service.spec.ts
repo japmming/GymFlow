@@ -105,6 +105,7 @@ describe('EventsService.create', () => {
           gymId: GYM_ID,
           name: payload.name,
           description: payload.description,
+          instructorName: null,
           type: payload.type,
           startDate: new Date(payload.startDate),
           endDate: new Date(payload.endDate),
@@ -154,6 +155,23 @@ describe('EventsService.create', () => {
       data: expect.objectContaining({
         name: 'Clase de prueba',
         description: null,
+      }),
+    });
+  });
+
+  it('normaliza el nombre del entrenador antes de guardar', async () => {
+    const prisma = createPrismaMock();
+    prisma.event.create.mockResolvedValue(buildEvent());
+
+    const service = createService(prisma);
+    await service.create(GYM_ID, {
+      ...functionalClass,
+      instructorName: '  Carlos Ramírez  ',
+    });
+
+    expect(prisma.event.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        instructorName: 'Carlos Ramírez',
       }),
     });
   });

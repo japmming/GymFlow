@@ -5,4 +5,5 @@ export interface AuthenticatedUser {
   gymId: string;
   email: string;
   role: UserRole;
+  memberId: string | null;
 }

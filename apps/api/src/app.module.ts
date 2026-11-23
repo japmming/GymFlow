@@ -12,6 +12,10 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { EventsModule } from './events/events.module';
 import { ReservationsModule } from './reservations/reservations.module';
+import { ReportsModule } from './reports/reports.module';
+import { GymsModule } from './gyms/gyms.module';
+import { CrmModule } from './crm/crm.module';
+import { PortalModule } from './portal/portal.module';
 
 @Module({
   imports: [
@@ -30,6 +34,10 @@ import { ReservationsModule } from './reservations/reservations.module';
     UsersModule,
     EventsModule,
     ReservationsModule,
+    ReportsModule,
+    GymsModule,
+    CrmModule,
+    PortalModule,
   ],
 })
 export class AppModule {}

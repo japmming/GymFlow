@@ -10,6 +10,7 @@ import type {
 } from '../../types/member';
 import type { MembersIntent } from '../../types/navigation';
 
+import { MemberCrmPanel } from '../crm/MemberCrmPanel';
 import { ActionDialog } from '../ui/ActionDialog';
 import { LoadingState } from '../ui/LoadingState';
 import { Pagination } from '../ui/Pagination';
@@ -60,6 +61,9 @@ export function MembersPage({
     useState(false);
 
   const [editingMember, setEditingMember] =
+    useState<Member | null>(null);
+
+  const [crmMember, setCrmMember] =
     useState<Member | null>(null);
 
   const [pendingAction, setPendingAction] = useState<{
@@ -271,6 +275,7 @@ export function MembersPage({
             members={members}
             canManage={isAdmin}
             onEdit={handleEdit}
+            onOpenCrm={setCrmMember}
             onDeactivate={(member) =>
               setPendingAction({
                 member,
@@ -305,6 +310,14 @@ export function MembersPage({
             setShowForm(false);
             setEditingMember(null);
           }}
+        />
+      )}
+
+      {crmMember && (
+        <MemberCrmPanel
+          memberId={crmMember.id}
+          memberName={`${crmMember.firstName} ${crmMember.lastName}`}
+          onClose={() => setCrmMember(null)}
         />
       )}
 

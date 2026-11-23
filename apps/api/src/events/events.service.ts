@@ -87,6 +87,7 @@ export class EventsService {
         gymId,
         name: dto.name.trim(),
         description: dto.description?.trim() || null,
+        instructorName: dto.instructorName?.trim() || null,
         type: dto.type,
         startDate,
         endDate,
@@ -127,6 +128,10 @@ export class EventsService {
 
         ...(dto.description !== undefined && {
           description: dto.description?.trim() || null,
+        }),
+
+        ...(dto.instructorName !== undefined && {
+          instructorName: dto.instructorName?.trim() || null,
         }),
 
         ...(dto.type !== undefined && {

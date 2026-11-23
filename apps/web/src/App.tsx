@@ -14,6 +14,7 @@ import { Sidebar } from './components/layout/Sidebar';
 import { Topbar } from './components/layout/Topbar';
 import { MembersPage } from './components/members/MembersPage';
 import { MembershipsPage } from './components/memberships/MembershipsPage';
+import { PortalShell } from './components/portal/PortalShell';
 import { PaymentsPage } from './components/payments/PaymentsPage';
 import { PlansPage } from './components/plans/PlansPage';
 import { LoadingState } from './components/ui/LoadingState';
@@ -41,8 +42,20 @@ const EventsPage = lazy(() =>
   ),
 );
 
+const ReportsPage = lazy(() =>
+  import('./components/reports/ReportsPage').then(
+    (module) => ({ default: module.ReportsPage }),
+  ),
+);
+
+const SettingsPage = lazy(() =>
+  import('./components/settings/SettingsPage').then(
+    (module) => ({ default: module.SettingsPage }),
+  ),
+);
+
 function AppShell() {
-  const { user, loading, isAdmin, logout } = useAuth();
+  const { isAdmin, logout } = useAuth();
 
   const [page, setPage] = useState<Page>(
     () => readPageFromHash() ?? DEFAULT_PAGE,
@@ -53,7 +66,11 @@ function AppShell() {
     useState<MembersIntent | null>(null);
 
   const allowedPage =
-    (page === 'plans' || page === 'users') && !isAdmin
+    (page === 'plans' ||
+      page === 'reports' ||
+      page === 'users' ||
+      page === 'settings') &&
+    !isAdmin
       ? 'dashboard'
       : page;
 
@@ -79,17 +96,15 @@ function AppShell() {
 
   // Si el rol no permite la página del enlace, se vuelve al inicio.
   useEffect(() => {
-    if (!loading && user && allowedPage !== page) {
+    if (allowedPage !== page) {
       navigateTo(allowedPage);
       setPage(allowedPage);
     }
-  }, [allowedPage, loading, page, user]);
+  }, [allowedPage, page]);
 
   useEffect(() => {
-    document.title = user
-      ? `${PAGE_LABELS[allowedPage]} · GymFlow`
-      : 'Iniciar sesión · GymFlow';
-  }, [allowedPage, user]);
+    document.title = `${PAGE_LABELS[allowedPage]} · GymFlow`;
+  }, [allowedPage]);
 
   // Cierra el menú móvil con Escape.
   useEffect(() => {
@@ -113,19 +128,6 @@ function AppShell() {
   const handleIntentHandled = useCallback(() => {
     setMembersIntent(null);
   }, []);
-
-  if (loading) {
-    return (
-      <div className="app-loading" role="status">
-        <span className="app-spinner" aria-hidden="true" />
-        Cargando sesión...
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <LoginPage />;
-  }
 
   const handleLogout = async () => {
     try {
@@ -259,6 +261,26 @@ function AppShell() {
                 <EventsPage />
               </Suspense>
             )}
+
+            {allowedPage === 'reports' && (
+              <Suspense
+                fallback={
+                  <LoadingState label="Cargando reportes..." />
+                }
+              >
+                <ReportsPage />
+              </Suspense>
+            )}
+
+            {allowedPage === 'settings' && (
+              <Suspense
+                fallback={
+                  <LoadingState label="Cargando configuración..." />
+                }
+              >
+                <SettingsPage />
+              </Suspense>
+            )}
           </main>
         </div>
       </div>
@@ -266,12 +288,31 @@ function AppShell() {
   );
 }
 
+function AppRouter() {
+  const { user, loading, isMember } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="app-loading" role="status">
+        <span className="app-spinner" aria-hidden="true" />
+        Cargando sesión...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage />;
+  }
+
+  return isMember ? <PortalShell /> : <AppShell />;
+}
+
 function App() {
   return (
     <ToastProvider>
       <ThemeProvider>
         <AuthProvider>
-          <AppShell />
+          <AppRouter />
         </AuthProvider>
       </ThemeProvider>
     </ToastProvider>

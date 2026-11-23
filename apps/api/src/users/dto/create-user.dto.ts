@@ -1,7 +1,8 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEmail,
   IsEnum,
+  IsOptional,
   IsString,
   Length,
   MaxLength,
@@ -64,4 +65,15 @@ export class CreateUserDto {
   })
   @IsEnum(UserRole)
   role!: UserRole;
+
+  @ApiPropertyOptional({
+    description:
+      'Socio vinculado. Obligatorio cuando el rol es MEMBER; no se usa para ADMIN o RECEPTION.',
+    format: 'uuid',
+    nullable: true,
+    example: '87c3e94d-360d-4191-bd6a-3818d00091f9',
+  })
+  @IsOptional()
+  @IsString()
+  memberId?: string | null;
 }

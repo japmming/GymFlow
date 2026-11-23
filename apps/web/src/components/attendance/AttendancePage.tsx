@@ -54,6 +54,7 @@ export function AttendancePage() {
     useState(false);
 
   const [error, setError] = useState('');
+  const [warning, setWarning] = useState('');
   const [historyError, setHistoryError] =
     useState('');
   const [memberCode, setMemberCode] = useState('');
@@ -121,11 +122,16 @@ export function AttendancePage() {
       try {
         setProcessing(true);
         setError('');
+        setWarning('');
         setLastAttendance(null);
 
         const result = await checkIn(payload);
 
         setLastAttendance(result);
+
+        if (result.warning) {
+          setWarning(result.warning);
+        }
 
         notify(
           `Ingreso registrado: ${result.member.firstName} ${result.member.lastName}.`,
@@ -311,6 +317,12 @@ export function AttendancePage() {
       {error && (
         <div className="error-message" role="alert">
           {error}
+        </div>
+      )}
+
+      {warning && (
+        <div className="warning-banner" role="status">
+          {warning}
         </div>
       )}
 

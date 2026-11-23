@@ -9,6 +9,7 @@ import {
 
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 import { DashboardService } from './dashboard.service';
 import { ErrorResponseDto } from '../swagger/models/common.model';
@@ -17,6 +18,7 @@ import { BEARER_AUTH, SWAGGER_TAGS } from '../swagger/swagger.constants';
 
 @ApiTags(SWAGGER_TAGS.DASHBOARD)
 @ApiBearerAuth(BEARER_AUTH)
+@Roles('ADMIN', 'RECEPTION')
 @Controller('dashboard')
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}

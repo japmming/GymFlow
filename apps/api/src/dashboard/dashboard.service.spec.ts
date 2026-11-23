@@ -55,7 +55,7 @@ describe('DashboardService.getSummary', () => {
   it('calcula los indicadores y el histórico de siete días', async () => {
     const prisma = createPrismaMock();
     const today = parseDateKey('2026-10-30');
-    const expiringLimit = parseDateKey('2026-11-06');
+    const expiringLimit = parseDateKey('2026-11-05');
     const last7DaysStart = parseDateKey('2026-10-24');
     const monthStart = parseDateKey('2026-10-01');
 

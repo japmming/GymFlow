@@ -6,9 +6,9 @@ import {
 } from '@nestjs/common';
 
 import { parseDateKey, todayDateKey } from '../common/date.utils';
-import { getGymTimezone } from '../common/gym-timezone';
+import { getGymTimezoneAndCurrency } from '../common/gym-timezone';
 import { buildMemberSearchTerms } from '../common/member-search';
-import { withPaymentSummary } from '../common/payment-summary';
+import { formatMoney, withPaymentSummary } from '../common/payment-summary';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CancelAttendanceDto } from './dto/cancel-attendance.dto';
@@ -68,7 +68,10 @@ export class AttendancesService {
       throw new BadRequestException('El miembro está inactivo.');
     }
 
-    const timezone = await getGymTimezone(this.prisma, gymId);
+    const { timezone, currency } = await getGymTimezoneAndCurrency(
+      this.prisma,
+      gymId,
+    );
     const todayKey = todayDateKey(timezone);
     const today = parseDateKey(todayKey);
 
@@ -111,6 +114,13 @@ export class AttendancesService {
         'La membresía no tiene pagos registrados. Registra al menos un pago para permitir el ingreso.',
       );
     }
+
+    const warning =
+      membershipSummary.balance > 0
+        ? `La membresía tiene un saldo pendiente de ${currency} ${formatMoney(
+            membershipSummary.balance,
+          )}. El ingreso queda registrado, pero coordinen el cobro.`
+        : null;
 
     const alreadyCheckedInToday = await this.prisma.attendance.findFirst({
       where: {
@@ -161,6 +171,7 @@ export class AttendancesService {
         membership: attendance.membership
           ? withPaymentSummary(attendance.membership)
           : null,
+        warning,
       };
     } catch (error) {
       if (

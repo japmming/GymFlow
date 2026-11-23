@@ -195,4 +195,46 @@ describe('MembersService', () => {
       });
     });
   });
+
+  describe('deactivate y reactivate', () => {
+    it('registra la fecha de baja al desactivar', async () => {
+      const prisma = createPrismaMock();
+      prisma.member.findFirst.mockResolvedValue(member);
+      prisma.member.update.mockResolvedValue(member);
+
+      const service = createService(prisma);
+
+      await service.deactivate('gym-1', 'member-1');
+
+      expect(prisma.member.update).toHaveBeenCalledWith({
+        where: {
+          id: 'member-1',
+        },
+        data: {
+          status: 'INACTIVE',
+          deactivatedAt: expect.any(Date),
+        },
+      });
+    });
+
+    it('limpia la fecha de baja al reactivar', async () => {
+      const prisma = createPrismaMock();
+      prisma.member.findFirst.mockResolvedValue(member);
+      prisma.member.update.mockResolvedValue(member);
+
+      const service = createService(prisma);
+
+      await service.reactivate('gym-1', 'member-1');
+
+      expect(prisma.member.update).toHaveBeenCalledWith({
+        where: {
+          id: 'member-1',
+        },
+        data: {
+          status: 'ACTIVE',
+          deactivatedAt: null,
+        },
+      });
+    });
+  });
 });

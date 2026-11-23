@@ -7,6 +7,7 @@ import {
   Pencil,
   Send,
   UserPlus,
+  UserRound,
   Users,
   Wallet,
 } from 'lucide-react';
@@ -135,6 +136,11 @@ export function EventCard({
               event.startDate,
               event.endDate,
             )}
+          </span>
+
+          <span>
+            <UserRound size={13} aria-hidden="true" />
+            {event.instructorName || 'Sin instructor'}
           </span>
 
           <span>

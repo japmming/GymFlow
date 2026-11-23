@@ -38,6 +38,15 @@ export class AuthUserDto {
   role!: UserRole;
 
   @ApiProperty({
+    description:
+      'Socio vinculado al usuario. Solo se usa para cuentas con rol MEMBER.',
+    format: 'uuid',
+    nullable: true,
+    example: null,
+  })
+  memberId!: string | null;
+
+  @ApiProperty({
     description: 'Último inicio de sesión registrado.',
     format: 'date-time',
     nullable: true,

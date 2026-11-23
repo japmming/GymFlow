@@ -195,6 +195,7 @@ describe('AttendancesService.checkIn', () => {
     prisma.member.findFirst.mockResolvedValue(member);
     prisma.gym.findFirst.mockResolvedValue({
       timezone: 'America/Lima',
+      currency: 'PEN',
     });
     prisma.membership.findFirst.mockResolvedValue(membership);
     prisma.attendance.findFirst.mockResolvedValue(null);
@@ -239,6 +240,40 @@ describe('AttendancesService.checkIn', () => {
         balance: 30,
       }),
     );
+
+    expect(result.warning).toContain('saldo pendiente');
+    expect(result.warning).toContain('PEN 30.00');
+  });
+
+  it('registra el ingreso sin advertencia cuando la membresía está pagada', async () => {
+    const prisma = createPrismaMock();
+    prisma.member.findFirst.mockResolvedValue(member);
+    prisma.gym.findFirst.mockResolvedValue({
+      timezone: 'America/Lima',
+      currency: 'PEN',
+    });
+    prisma.membership.findFirst.mockResolvedValue({
+      ...membership,
+      payments: [{ amount: 50, status: 'COMPLETED' }],
+    });
+    prisma.attendance.findFirst.mockResolvedValue(null);
+    prisma.attendance.create.mockResolvedValue({
+      id: 'attendance-2',
+      memberId: member.id,
+      membershipId: membership.id,
+      attendanceDate: new Date('2026-10-30T00:00:00.000Z'),
+      source: 'MEMBER_CODE',
+      member,
+      membership,
+    });
+
+    const service = createService(prisma);
+
+    const result = await service.checkIn('gym-1', {
+      memberCode: member.memberCode,
+    });
+
+    expect(result.warning).toBeNull();
   });
 
   it('normaliza el código de socio y registra el origen MEMBER_CODE', async () => {

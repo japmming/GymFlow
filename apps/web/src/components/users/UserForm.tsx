@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 
+import type { Member } from '../../types/member';
 import type {
   ManagedUser,
   UserRole,
@@ -12,18 +13,30 @@ export interface UserFormValues {
   role: UserRole;
   active: boolean;
   password: string;
+  memberId: string | null;
 }
 
 interface UserFormProps {
   user?: ManagedUser | null;
   isSelf?: boolean;
+  members: Member[];
+  membersLoading?: boolean;
   onSubmit: (values: UserFormValues) => Promise<void>;
   onCancel: () => void;
+}
+
+function memberLabel(member: Member): string {
+  const name = `${member.firstName} ${member.lastName}`.trim();
+  const email = member.email ? ` · ${member.email}` : '';
+
+  return `${member.memberCode} · ${name}${email}`;
 }
 
 export function UserForm({
   user,
   isSelf = false,
+  members,
+  membersLoading = false,
   onSubmit,
   onCancel,
 }: UserFormProps) {
@@ -33,6 +46,7 @@ export function UserForm({
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [role, setRole] = useState<UserRole>('RECEPTION');
+  const [memberId, setMemberId] = useState('');
   const [active, setActive] = useState(true);
   const [password, setPassword] = useState('');
 
@@ -45,6 +59,7 @@ export function UserForm({
       setFirstName(user.firstName);
       setLastName(user.lastName);
       setRole(user.role);
+      setMemberId(user.memberId ?? '');
       setActive(user.active);
       setPassword('');
       return;
@@ -54,6 +69,7 @@ export function UserForm({
     setFirstName('');
     setLastName('');
     setRole('RECEPTION');
+    setMemberId('');
     setActive(true);
     setPassword('');
   }, [user]);
@@ -76,6 +92,11 @@ export function UserForm({
       return;
     }
 
+    if (role === 'MEMBER' && !memberId) {
+      setError('Selecciona el socio vinculado a este usuario.');
+      return;
+    }
+
     try {
       setLoading(true);
       setError('');
@@ -87,6 +108,7 @@ export function UserForm({
         role,
         active,
         password,
+        memberId: role === 'MEMBER' ? memberId : null,
       });
     } catch (err) {
       setError(
@@ -162,8 +184,43 @@ export function UserForm({
           >
             <option value="ADMIN">Administrador</option>
             <option value="RECEPTION">Recepción</option>
+            <option value="MEMBER">Socio</option>
           </select>
         </label>
+
+        {role === 'MEMBER' && (
+          <label className="form-full">
+            Socio vinculado
+            <select
+              name="memberId"
+              required
+              value={memberId}
+              disabled={membersLoading}
+              onChange={(event) =>
+                setMemberId(event.target.value)
+              }
+            >
+              <option value="">
+                {membersLoading
+                  ? 'Cargando socios...'
+                  : 'Selecciona un socio'}
+              </option>
+
+              {members.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {memberLabel(member)}
+                </option>
+              ))}
+            </select>
+
+            {members.length === 0 && !membersLoading && (
+              <span className="field-hint">
+                No hay socios registrados. Crea un socio antes de
+                asignar este rol.
+              </span>
+            )}
+          </label>
+        )}
 
         <label>
           {editing ? 'Nueva contraseña' : 'Contraseña'}
@@ -213,7 +270,7 @@ export function UserForm({
         <button
           type="submit"
           className="button primary"
-          disabled={loading}
+          disabled={loading || (role === 'MEMBER' && membersLoading)}
           aria-describedby={
             error ? 'user-form-error' : undefined
           }

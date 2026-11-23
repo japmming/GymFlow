@@ -26,6 +26,13 @@ export class EventResponseDto {
   description!: string | null;
 
   @ApiProperty({
+    description: 'Entrenador asignado al evento.',
+    nullable: true,
+    example: 'Carlos Ramírez',
+  })
+  instructorName!: string | null;
+
+  @ApiProperty({
     description: 'Tipo de evento.',
     enum: EventType,
     example: EventType.CLASS,

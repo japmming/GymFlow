@@ -136,8 +136,24 @@ export function setupSwagger(app: INestApplication): void {
     .addTag(SWAGGER_TAGS.PAYMENTS, 'Registro y reverso de pagos.')
     .addTag(SWAGGER_TAGS.ATTENDANCES, 'Check-in por QR o código de socio.')
     .addTag(SWAGGER_TAGS.DASHBOARD, 'Indicadores consolidados del gimnasio.')
+    .addTag(
+      SWAGGER_TAGS.REPORTS,
+      'Reportes operativos, retención y horarios pico (solo ADMIN).',
+    )
     .addTag(SWAGGER_TAGS.USERS, 'Gestión de usuarios internos (solo ADMIN).')
     .addTag(SWAGGER_TAGS.EVENTS, 'Clases, talleres y competencias.')
+    .addTag(
+      SWAGGER_TAGS.GYMS,
+      'Identidad, moneda, zona horaria y horarios del gimnasio (solo ADMIN).',
+    )
+    .addTag(
+      SWAGGER_TAGS.CRM,
+      'Notas e historial de interacciones de socios (ADMIN y RECEPCIÓN).',
+    )
+    .addTag(
+      SWAGGER_TAGS.PORTAL,
+      'Datos e inscripciones del socio autenticado (solo MEMBER).',
+    )
     .build();
 
   const document = SwaggerModule.createDocument(app, config, {

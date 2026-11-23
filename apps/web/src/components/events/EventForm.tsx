@@ -22,6 +22,7 @@ interface EventFormProps {
 const EMPTY_VALUES = {
   name: '',
   description: '',
+  instructorName: '',
   type: 'CLASS' as EventType,
   startDate: '',
   endDate: '',
@@ -38,6 +39,9 @@ export function EventForm({
   const [name, setName] = useState(EMPTY_VALUES.name);
   const [description, setDescription] = useState(
     EMPTY_VALUES.description,
+  );
+  const [instructorName, setInstructorName] = useState(
+    EMPTY_VALUES.instructorName,
   );
   const [type, setType] = useState<EventType>(
     EMPTY_VALUES.type,
@@ -60,6 +64,7 @@ export function EventForm({
     if (event) {
       setName(event.name);
       setDescription(event.description ?? '');
+      setInstructorName(event.instructorName ?? '');
       setType(event.type);
       setStartDate(toDateTimeLocalValue(event.startDate));
       setEndDate(toDateTimeLocalValue(event.endDate));
@@ -73,6 +78,7 @@ export function EventForm({
 
     setName(EMPTY_VALUES.name);
     setDescription(EMPTY_VALUES.description);
+    setInstructorName(EMPTY_VALUES.instructorName);
     setType(EMPTY_VALUES.type);
     setStartDate(EMPTY_VALUES.startDate);
     setEndDate(EMPTY_VALUES.endDate);
@@ -143,6 +149,7 @@ export function EventForm({
       await onSubmit({
         name: name.trim(),
         description: description.trim() || null,
+        instructorName: instructorName.trim() || null,
         type,
         startDate: dateTimeLocalToIso(startDate),
         endDate: dateTimeLocalToIso(endDate),
@@ -199,6 +206,23 @@ export function EventForm({
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="event-instructor">
+            Entrenador (opcional)
+          </label>
+
+          <input
+            id="event-instructor"
+            name="instructorName"
+            value={instructorName}
+            onChange={(event) =>
+              setInstructorName(event.target.value)
+            }
+            placeholder="Ej. Carlos Ramírez"
+            maxLength={100}
+          />
         </div>
 
         <div className="form-group">

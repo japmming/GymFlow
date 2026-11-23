@@ -36,6 +36,7 @@ export interface Attendance {
   cancellationReason?: string | null;
   member: AttendanceMember;
   membership?: AttendanceMembership | null;
+  warning?: string | null;
 }
 
 export interface CheckInRequest {

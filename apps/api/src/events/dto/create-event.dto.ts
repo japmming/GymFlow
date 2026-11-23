@@ -34,6 +34,16 @@ export class CreateEventDto {
   @MaxLength(1000)
   description?: string;
 
+  @ApiPropertyOptional({
+    description: 'Nombre del entrenador asignado al evento.',
+    maxLength: 100,
+    example: 'Carlos Ramírez',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  instructorName?: string | null;
+
   @ApiProperty({
     description: 'Tipo de evento.',
     enum: EventType,

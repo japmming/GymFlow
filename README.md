@@ -61,14 +61,39 @@ El acceso requiere iniciar sesión. La API emite un **access token JWT** de cort
 
 | Rol | Alcance |
 | --- | --- |
-| `ADMIN` | Acceso completo: socios, membresías, pagos, asistencias, planes y usuarios; reversos, cancelaciones y activación/desactivación. |
-| `RECEPTION` | Operación diaria (socios, membresías, pagos, asistencias). Sin gestión de planes ni usuarios, sin reversos de pagos, sin cancelaciones de membresías/asistencias ni activación/desactivación de socios. |
+| `ADMIN` | Acceso completo: socios, membresías, pagos, asistencias, planes, usuarios y configuración del gimnasio; reversos, cancelaciones y activación/desactivación. |
+| `RECEPTION` | Operación diaria (socios, membresías, pagos, asistencias, CRM). Sin gestión de planes ni usuarios, sin reversos de pagos, sin cancelaciones de membresías/asistencias ni activación/desactivación de socios. |
+| `MEMBER` | Portal del socio: perfil, membresía vigente, pagos de membresía, eventos publicados y gestiones de sus propias reservas. Sin acceso a datos operativos del gimnasio. |
 
 Endpoints de sesión:
 - `POST /api/v1/auth/login`: inicia sesión y entrega el access token.
 - `POST /api/v1/auth/refresh`: rota el refresh token y entrega un nuevo access token.
 - `POST /api/v1/auth/logout`: revoca el refresh token actual.
 - `GET /api/v1/auth/me`: devuelve el perfil autenticado.
+- `GET /api/v1/gym`: devuelve la configuración del gimnasio (solo `ADMIN`).
+- `PATCH /api/v1/gym`: actualiza identidad, moneda, zona horaria, logo y horarios (solo `ADMIN`).
+
+### CRM y portal del socio (Fase 3)
+
+CRM interno, disponible para `ADMIN` y `RECEPTION`:
+
+- `GET /api/v1/members/:memberId/notes`: notas del socio.
+- `POST /api/v1/members/:memberId/notes`: crea una nota.
+- `PATCH /api/v1/members/:memberId/notes/:noteId`: edita una nota.
+- `DELETE /api/v1/members/:memberId/notes/:noteId`: elimina una nota.
+- `GET /api/v1/members/:memberId/activity`: historial reciente de notas, ingresos, pagos, membresías y reservas.
+
+Portal del socio, disponible solo para `MEMBER`:
+
+- `GET /api/v1/me`: perfil del socio vinculado a la cuenta.
+- `GET /api/v1/me/membership`: membresía vigente con saldo calculado.
+- `GET /api/v1/me/payments`: historial de pagos de membresía.
+- `GET /api/v1/me/events`: eventos publicados y próximos.
+- `GET /api/v1/me/reservations`: inscripciones del socio.
+- `POST /api/v1/me/reservations`: inscribe al socio en un evento.
+- `PATCH /api/v1/me/reservations/:id/cancel`: cancela una reserva propia.
+
+Las cuentas `MEMBER` se crean desde **Usuarios** seleccionando el socio vinculado. El vínculo es obligatorio y debe pertenecer al mismo gimnasio.
 
 ### Credenciales demo
 
@@ -78,8 +103,9 @@ El seed crea estas cuentas cuando no existen:
 | --- | --- | --- |
 | `ADMIN` | `admin@gymflow.local` | `Admin123!` |
 | `RECEPTION` | `recepcion@gymflow.local` | `Recepcion123!` |
+| `MEMBER` | `socio@gymflow.local` | `Socio123!` |
 
-Puedes cambiarlas con las variables `SEED_ADMIN_*` y `SEED_RECEPTION_*` antes de ejecutar el seed. **Cámbialas antes de usar datos reales.**
+La cuenta socio se vincula al socio demo `DEMO-001`. Puedes cambiar las credenciales con las variables `SEED_ADMIN_*`, `SEED_RECEPTION_*` y `SEED_MEMBER_*` antes de ejecutar el seed. **Cámbialas antes de usar datos reales.**
 
 ## Scripts útiles
 

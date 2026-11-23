@@ -4,6 +4,8 @@ import {
   dateKeyInTimeZone,
   dateToDateKey,
   parseDateKey,
+  startOfDayInTimeZone,
+  timeInTimeZone,
 } from './date.utils';
 
 describe('date.utils', () => {
@@ -31,6 +33,34 @@ describe('date.utils', () => {
       expect(() => parseDateKey('2026-13-01')).toThrow(
         'La fecha ingresada no es válida.',
       );
+    });
+  });
+
+  describe('timeInTimeZone', () => {
+    it('convierte un instante UTC a la hora local de la zona', () => {
+      expect(
+        timeInTimeZone(new Date('2026-11-20T15:30:00.000Z'), 'America/Lima'),
+      ).toBe('10:30');
+    });
+
+    it('respeta el cambio de día en la zona horaria', () => {
+      expect(
+        dateKeyInTimeZone(new Date('2026-11-20T03:30:00.000Z'), 'America/Lima'),
+      ).toBe('2026-11-19');
+    });
+  });
+
+  describe('startOfDayInTimeZone', () => {
+    it('calcula el inicio local de Lima en UTC', () => {
+      expect(
+        startOfDayInTimeZone('2026-11-20', 'America/Lima').toISOString(),
+      ).toBe('2026-11-20T05:00:00.000Z');
+    });
+
+    it('calcula el inicio local de una zona con hora adelantada', () => {
+      expect(
+        startOfDayInTimeZone('2026-11-20', 'Asia/Shanghai').toISOString(),
+      ).toBe('2026-11-19T16:00:00.000Z');
     });
   });
 

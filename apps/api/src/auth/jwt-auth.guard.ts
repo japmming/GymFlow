@@ -17,6 +17,7 @@ interface AccessTokenPayload {
   gymId: string;
   email: string;
   role: UserRole;
+  memberId?: string | null;
 }
 
 @Injectable()
@@ -61,6 +62,7 @@ export class JwtAuthGuard implements CanActivate {
         gymId: payload.gymId,
         email: payload.email,
         role: payload.role,
+        memberId: payload.memberId ?? null,
       };
 
       return true;

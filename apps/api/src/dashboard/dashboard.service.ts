@@ -20,7 +20,7 @@ export class DashboardService {
     const last7DaysStartKey = addDaysToDateKey(todayKey, -6);
     const last7DaysStart = parseDateKey(last7DaysStartKey);
     const monthStart = parseDateKey(`${todayKey.slice(0, 7)}-01`);
-    const expiringLimit = parseDateKey(addDaysToDateKey(todayKey, 7));
+    const expiringLimit = parseDateKey(addDaysToDateKey(todayKey, 6));
 
     const [
       totalMembers,

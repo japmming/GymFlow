@@ -14,6 +14,10 @@ export const SWAGGER_TAGS = {
   PAYMENTS: 'Pagos',
   ATTENDANCES: 'Asistencias',
   DASHBOARD: 'Panel',
+  REPORTS: 'Reportes',
   USERS: 'Usuarios',
   EVENTS: 'Eventos',
+  GYMS: 'Gimnasio',
+  CRM: 'CRM',
+  PORTAL: 'Portal del socio',
 } as const;

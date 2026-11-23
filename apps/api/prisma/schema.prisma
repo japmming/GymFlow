@@ -18,12 +18,15 @@ enum MemberStatus {
 }
 
 model Gym {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String
-  slug      String   @unique
-  timezone  String   @default("America/Lima") @db.VarChar(64)
-  createdAt DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  slug         String   @unique
+  timezone     String   @default("America/Lima") @db.VarChar(64)
+  currency     String   @default("PEN") @db.VarChar(3)
+  logoUrl      String?  @db.VarChar(500)
+  openingHours Json?
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
 
   members       Member[]
   plans         Plan[]
@@ -34,11 +37,13 @@ model Gym {
   events        Event[]
   reservations  Reservation[]
   eventPayments EventPayment[]
+  memberNotes   MemberNote[]
 }
 
 enum UserRole {
   ADMIN
   RECEPTION
+  MEMBER
 }
 
 model User {
@@ -49,17 +54,21 @@ model User {
   firstName    String    @db.VarChar(100)
   lastName     String    @db.VarChar(100)
   role         UserRole  @default(RECEPTION)
+  memberId     String?   @unique @db.Uuid
   active       Boolean   @default(true)
   lastLoginAt  DateTime? @db.Timestamptz(3)
   createdAt    DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
 
-  gym Gym @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  gym    Gym    @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  member Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
 
   refreshTokens RefreshToken[]
+  notes         MemberNote[]
 
   @@unique([gymId, email])
   @@index([gymId, role])
+  @@index([gymId, memberId])
 }
 
 model RefreshToken {
@@ -88,6 +97,7 @@ model Member {
   qrTokenRegeneratedAt      DateTime?    @db.Timestamptz(3)
   qrTokenRegenerationReason String?      @db.VarChar(255)
   status                    MemberStatus @default(ACTIVE)
+  deactivatedAt             DateTime?    @db.Timestamptz(3)
   createdAt                 DateTime     @default(now()) @db.Timestamptz(3)
   updatedAt                 DateTime     @updatedAt @db.Timestamptz(3)
 
@@ -97,11 +107,29 @@ model Member {
   payments     Payment[]
   attendances  Attendance[]
   reservations Reservation[]
+  user         User?
+  notes        MemberNote[]
 
   @@unique([gymId, documentNumber])
   @@unique([gymId, memberCode])
   @@index([gymId, lastName, firstName])
   @@index([gymId, status])
+}
+
+model MemberNote {
+  id        String   @id @default(uuid()) @db.Uuid
+  gymId     String   @db.Uuid
+  memberId  String   @db.Uuid
+  authorId  String   @db.Uuid
+  body      String   @db.VarChar(1000)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  gym    Gym    @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  author User   @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([gymId, memberId, createdAt])
 }
 
 enum MembershipStatus {
@@ -237,6 +265,7 @@ model Event {
   gymId                    String      @db.Uuid
   name                     String      @db.VarChar(150)
   description              String?     @db.VarChar(1000)
+  instructorName           String?     @db.VarChar(100)
   type                     EventType
   status                   EventStatus @default(DRAFT)
   startDate                DateTime

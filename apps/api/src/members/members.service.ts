@@ -240,6 +240,7 @@ export class MembersService {
       },
       data: {
         status: 'INACTIVE',
+        deactivatedAt: new Date(),
       },
     });
   }
@@ -253,6 +254,7 @@ export class MembersService {
       },
       data: {
         status: 'ACTIVE',
+        deactivatedAt: null,
       },
     });
   }

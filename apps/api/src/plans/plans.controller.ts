@@ -33,6 +33,7 @@ import { BEARER_AUTH, SWAGGER_TAGS } from '../swagger/swagger.constants';
 
 @ApiTags(SWAGGER_TAGS.PLANS)
 @ApiBearerAuth(BEARER_AUTH)
+@Roles('ADMIN', 'RECEPTION')
 @Controller('plans')
 export class PlansController {
   constructor(private readonly plansService: PlansService) {}

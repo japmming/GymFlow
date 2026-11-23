@@ -20,6 +20,7 @@ import {
 } from '@nestjs/swagger';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 import { ErrorResponseDto } from '../swagger/models/common.model';
@@ -33,6 +34,7 @@ import { CreateEventPaymentDto } from './dto/create-event-payment.dto';
 
 @ApiTags('Reservas')
 @ApiBearerAuth(BEARER_AUTH)
+@Roles('ADMIN', 'RECEPTION')
 @Controller('reservations')
 export class ReservationsController {
   constructor(private readonly reservationsService: ReservationsService) {}

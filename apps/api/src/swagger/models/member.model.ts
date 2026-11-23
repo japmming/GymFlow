@@ -79,6 +79,14 @@ export class MemberResponseDto {
   })
   status!: MemberStatus;
 
+  @ApiProperty({
+    description: 'Fecha en que el socio fue dado de baja.',
+    format: 'date-time',
+    nullable: true,
+    example: null,
+  })
+  deactivatedAt!: string | null;
+
   @ApiProperty({ format: 'date-time', example: '2026-11-14T03:52:57.802Z' })
   createdAt!: string;
 

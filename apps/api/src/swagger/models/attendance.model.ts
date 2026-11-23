@@ -108,4 +108,12 @@ export class CheckInResponseDto extends OmitType(AttendanceResponseDto, [
     nullable: true,
   })
   membership!: MembershipWithSummaryDto | null;
+
+  @ApiProperty({
+    description:
+      'Advertencia cuando la membresía tiene saldo pendiente. El ingreso se registra igual.',
+    nullable: true,
+    example: 'La membresía tiene un saldo pendiente de PEN 30.00.',
+  })
+  warning!: string | null;
 }

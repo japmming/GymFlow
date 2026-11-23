@@ -11,6 +11,7 @@ export interface GymEvent {
   gymId: string;
   name: string;
   description: string | null;
+  instructorName?: string | null;
   type: EventType;
   status: EventStatus;
   startDate: string;
@@ -33,6 +34,7 @@ export interface EventFilters {
 export interface CreateEventRequest {
   name: string;
   description?: string | null;
+  instructorName?: string | null;
   type: EventType;
   startDate: string;
   endDate: string;

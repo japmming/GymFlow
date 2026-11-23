@@ -1,4 +1,4 @@
-export type UserRole = 'ADMIN' | 'RECEPTION';
+export type UserRole = 'ADMIN' | 'RECEPTION' | 'MEMBER';
 
 export interface AuthUser {
   id: string;
@@ -7,6 +7,7 @@ export interface AuthUser {
   firstName: string;
   lastName: string;
   role: UserRole;
+  memberId: string | null;
   lastLoginAt: string | null;
 }
 
@@ -27,12 +28,14 @@ export interface CreateUserRequest {
   lastName: string;
   password: string;
   role: UserRole;
+  memberId?: string | null;
 }
 
 export interface UpdateUserRequest {
   firstName?: string;
   lastName?: string;
   role?: UserRole;
+  memberId?: string | null;
   active?: boolean;
   password?: string;
 }

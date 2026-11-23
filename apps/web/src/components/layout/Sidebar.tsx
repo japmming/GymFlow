@@ -1,5 +1,6 @@
 import {
   BadgeDollarSign,
+  BarChart3,
   CalendarDays,
   CreditCard,
   Dumbbell,
@@ -71,6 +72,12 @@ const SECTIONS: SidebarSection[] = [
         icon: BadgeDollarSign,
         adminOnly: true,
       },
+      {
+        page: 'reports',
+        label: 'Reportes',
+        icon: BarChart3,
+        adminOnly: true,
+      },
     ],
   },
   {
@@ -98,9 +105,10 @@ const SECTIONS: SidebarSection[] = [
         adminOnly: true,
       },
       {
+        page: 'settings',
         label: 'Configuración',
         icon: Settings,
-        soon: true,
+        adminOnly: true,
       },
     ],
   },
@@ -239,7 +247,9 @@ export function Sidebar({
             <span>
               {user.role === 'ADMIN'
                 ? 'Administrador'
-                : 'Recepción'}
+                : user.role === 'MEMBER'
+                  ? 'Socio'
+                  : 'Recepción'}
             </span>
           </div>
 

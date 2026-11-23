@@ -92,6 +92,12 @@ describe('CreateEventDto', () => {
     );
   });
 
+  it('responde 400 cuando el nombre del entrenador supera 100 caracteres', async () => {
+    await expect(
+      validateBody({ ...validPayload, instructorName: 'x'.repeat(101) }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
   it('responde 400 cuando se envían propiedades desconocidas', async () => {
     await expect(
       validateBody({ ...validPayload, status: 'PUBLISHED' }),

@@ -16,6 +16,9 @@ interface PrismaMock {
     update: jest.Mock;
     count: jest.Mock;
   };
+  member: {
+    findFirst: jest.Mock;
+  };
 }
 
 function createPrismaMock(): PrismaMock {
@@ -26,6 +29,9 @@ function createPrismaMock(): PrismaMock {
       create: jest.fn(),
       update: jest.fn(),
       count: jest.fn(),
+    },
+    member: {
+      findFirst: jest.fn(),
     },
   };
 }
@@ -42,6 +48,7 @@ const baseUser = {
   firstName: 'Admin',
   lastName: 'GymFlow',
   role: 'ADMIN' as const,
+  memberId: null,
   active: true,
   lastLoginAt: null,
   createdAt: new Date(),
@@ -213,6 +220,116 @@ describe('UsersService', () => {
       await expect(
         service.update('gym-1', 'missing', {}, 'actor-1'),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('cuentas vinculadas a un socio', () => {
+    it('crea un usuario MEMBER vinculado a un socio del gimnasio', async () => {
+      const prisma = createPrismaMock();
+
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.member.findFirst.mockResolvedValue({ id: 'member-1' });
+      prisma.user.create.mockImplementation(
+        ({ data }: { data: Record<string, unknown> }) => ({
+          ...baseUser,
+          ...data,
+          role: 'MEMBER',
+        }),
+      );
+
+      await createService(prisma).create('gym-1', {
+        email: 'socio@gymflow.local',
+        firstName: 'Valeria',
+        lastName: 'Ramos',
+        password: 'Socio123!',
+        role: 'MEMBER',
+        memberId: 'member-1',
+      });
+
+      expect(prisma.member.findFirst).toHaveBeenCalledWith({
+        where: { id: 'member-1', gymId: 'gym-1' },
+        select: { id: true },
+      });
+      expect(prisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ memberId: 'member-1' }),
+        }),
+      );
+    });
+
+    it('exige un socio al crear una cuenta MEMBER', async () => {
+      const prisma = createPrismaMock();
+
+      prisma.user.findFirst.mockResolvedValue(null);
+
+      await expect(
+        createService(prisma).create('gym-1', {
+          email: 'socio@gymflow.local',
+          firstName: 'Valeria',
+          lastName: 'Ramos',
+          password: 'Socio123!',
+          role: 'MEMBER',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rechaza vincular un socio a una cuenta que no es MEMBER', async () => {
+      const prisma = createPrismaMock();
+
+      prisma.user.findFirst.mockResolvedValue(null);
+
+      await expect(
+        createService(prisma).create('gym-1', {
+          email: 'otro@gymflow.local',
+          firstName: 'Ana',
+          lastName: 'Torres',
+          password: 'Clave12345!',
+          role: 'RECEPTION',
+          memberId: 'member-1',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rechaza un socio que pertenece a otro gimnasio', async () => {
+      const prisma = createPrismaMock();
+
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.member.findFirst.mockResolvedValue(null);
+
+      await expect(
+        createService(prisma).create('gym-1', {
+          email: 'socio@gymflow.local',
+          firstName: 'Valeria',
+          lastName: 'Ramos',
+          password: 'Socio123!',
+          role: 'MEMBER',
+          memberId: 'member-2',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('vincula el socio al cambiar el rol a MEMBER', async () => {
+      const prisma = createPrismaMock();
+
+      prisma.user.findFirst.mockResolvedValue(baseUser);
+      prisma.member.findFirst.mockResolvedValue({ id: 'member-1' });
+      prisma.user.update.mockResolvedValue(baseUser);
+
+      await createService(prisma).update(
+        'gym-1',
+        'user-2',
+        { role: 'MEMBER', memberId: 'member-1' },
+        'actor-1',
+      );
+
+      expect(prisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            role: 'MEMBER',
+            member: { connect: { id: 'member-1' } },
+          }),
+        }),
+      );
     });
   });
 });

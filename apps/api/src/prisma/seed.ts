@@ -17,7 +17,7 @@ interface SeedUser {
 }
 
 function readSeedUser(
-  prefix: 'ADMIN' | 'RECEPTION',
+  prefix: 'ADMIN' | 'RECEPTION' | 'MEMBER',
   defaults: SeedUser,
 ): SeedUser {
   return {
@@ -58,6 +58,14 @@ async function main(): Promise<void> {
     role: 'RECEPTION',
   });
 
+  const memberUser = readSeedUser('MEMBER', {
+    email: 'socio@gymflow.local',
+    password: 'Socio123!',
+    firstName: 'Valeria',
+    lastName: 'Ramos',
+    role: 'MEMBER',
+  });
+
   try {
     const gym = await prisma.gym.upsert({
       where: {
@@ -72,7 +80,29 @@ async function main(): Promise<void> {
       },
     });
 
-    for (const user of [admin, reception]) {
+    const demoMember = await prisma.member.findFirst({
+      where: {
+        gymId: gym.id,
+        memberCode: 'DEMO-001',
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!demoMember) {
+      console.log(
+        'No se creó el usuario socio demo: falta el socio DEMO-001 en la base de datos.',
+      );
+    }
+
+    const users: Array<SeedUser & { memberId?: string }> = [
+      admin,
+      reception,
+      ...(demoMember ? [{ ...memberUser, memberId: demoMember.id }] : []),
+    ];
+
+    for (const user of users) {
       const existing = await prisma.user.findFirst({
         where: {
           gymId: gym.id,
@@ -96,6 +126,7 @@ async function main(): Promise<void> {
           firstName: user.firstName,
           lastName: user.lastName,
           role: user.role,
+          memberId: user.memberId,
         },
       });
 

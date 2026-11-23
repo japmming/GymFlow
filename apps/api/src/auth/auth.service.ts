@@ -22,6 +22,7 @@ export interface AuthUser {
   firstName: string;
   lastName: string;
   role: UserRole;
+  memberId: string | null;
   lastLoginAt: Date | null;
 }
 
@@ -232,6 +233,7 @@ export class AuthService {
       gymId: user.gymId,
       email: user.email,
       role: user.role,
+      memberId: user.memberId,
     });
   }
 
@@ -278,6 +280,7 @@ export class AuthService {
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
+      memberId: user.memberId,
       lastLoginAt: user.lastLoginAt,
     };
   }

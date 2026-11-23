@@ -5,6 +5,8 @@ import type {
 } from '../types/membership';
 import type { Member } from '../types/member';
 import type { DashboardSummary } from '../types/dashboard';
+import type { GymSettings, UpdateGymRequest } from '../types/gym';
+import type { ReportsResponse } from '../types/report';
 import type {
   CreateEventRequest,
   EventFilters,
@@ -33,6 +35,11 @@ import type {
   Reservation,
   ReservationFilters,
 } from '../types/reservation';
+import type { MyProfile } from '../types/portal';
+import type {
+  MemberActivity,
+  MemberNote,
+} from '../types/crm';
 
 const API_URL =
   import.meta.env.VITE_API_URL ??
@@ -116,6 +123,7 @@ async function request<T>(
   retried = false,
 ): Promise<T> {
   const response = await fetch(`${API_URL}${endpoint}`, {
+    cache: 'no-store',
     ...options,
     credentials: 'include',
     headers: {
@@ -204,6 +212,19 @@ export const logout = async (): Promise<void> => {
   } finally {
     accessToken = null;
   }
+};
+
+export const getGymSettings = async (): Promise<GymSettings> => {
+  return request<GymSettings>('/gym');
+};
+
+export const updateGymSettings = async (
+  data: UpdateGymRequest,
+): Promise<GymSettings> => {
+  return request<GymSettings>('/gym', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
 };
 
 export const getUsers = async (): Promise<ManagedUser[]> => {
@@ -345,6 +366,27 @@ export const regenerateMemberQr = async (
 
 export const getDashboard = async (): Promise<DashboardSummary> => {
   return request<DashboardSummary>('/dashboard');
+};
+
+export const getReports = async (filters: {
+  from?: string;
+  to?: string;
+}): Promise<ReportsResponse> => {
+  const params = new URLSearchParams();
+
+  if (filters.from) {
+    params.set('from', filters.from);
+  }
+
+  if (filters.to) {
+    params.set('to', filters.to);
+  }
+
+  const query = params.toString();
+
+  return request<ReportsResponse>(
+    `/reports${query ? `?${query}` : ''}`,
+  );
 };
 
 export const getPayments = async (): Promise<Payment[]> => {
@@ -584,3 +626,78 @@ export const getEventReservations = async (
     `/reservations/event/${eventId}`,
   );
 };
+
+// CRM interno (ADMIN y RECEPCIÓN)
+
+export const getMemberNotes = async (
+  memberId: string,
+): Promise<MemberNote[]> =>
+  request<MemberNote[]>(`/members/${memberId}/notes`);
+
+export const createMemberNote = async (
+  memberId: string,
+  body: string,
+): Promise<MemberNote> =>
+  request<MemberNote>(`/members/${memberId}/notes`, {
+    method: 'POST',
+    body: JSON.stringify({ body }),
+  });
+
+export const updateMemberNote = async (
+  memberId: string,
+  noteId: string,
+  body: string,
+): Promise<MemberNote> =>
+  request<MemberNote>(
+    `/members/${memberId}/notes/${noteId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ body }),
+    },
+  );
+
+export const deleteMemberNote = async (
+  memberId: string,
+  noteId: string,
+): Promise<{ success: true }> =>
+  request<{ success: true }>(
+    `/members/${memberId}/notes/${noteId}`,
+    { method: 'DELETE' },
+  );
+
+export const getMemberActivity = async (
+  memberId: string,
+): Promise<MemberActivity[]> =>
+  request<MemberActivity[]>(`/members/${memberId}/activity`);
+
+// Portal del socio (MEMBER)
+
+export const getMyProfile = async (): Promise<MyProfile> =>
+  request<MyProfile>('/me');
+
+export const getMyMembership = async (): Promise<Membership | null> =>
+  request<Membership | null>('/me/membership');
+
+export const getMyPayments = async (): Promise<Payment[]> =>
+  request<Payment[]>('/me/payments');
+
+export const getMyReservations = async (): Promise<Reservation[]> =>
+  request<Reservation[]>('/me/reservations');
+
+export const getMyEvents = async (): Promise<GymEvent[]> =>
+  request<GymEvent[]>('/me/events');
+
+export const createMyReservation = async (
+  eventId: string,
+): Promise<Reservation> =>
+  request<Reservation>('/me/reservations', {
+    method: 'POST',
+    body: JSON.stringify({ eventId }),
+  });
+
+export const cancelMyReservation = async (
+  id: string,
+): Promise<Reservation> =>
+  request<Reservation>(`/me/reservations/${id}/cancel`, {
+    method: 'PATCH',
+  });
